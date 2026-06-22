@@ -1,0 +1,318 @@
+# nanotui/elements.py
+from .colors import *
+from .screen import *
+import time
+import os
+
+class Element:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.length = 0
+        self.height = 1
+        self.is_focused = False
+
+    def erase(self):
+        if self.length > 0:
+            # Überschreibe den alten Text mit der exakten Anzahl an Leerzeichen
+            for i in range(self.height):
+                draw_at((self.y + i), self.x, " " * self.length)
+            #self.length = 0
+            #self.height = 0
+
+
+    def on_focus(self):
+        pass
+
+    def on_blur(self):
+        pass
+
+class LoadingBar(Element):
+    def __init__(self, x, y, steps=5, symbol=".", interval=0.4, color=WHITE, bg_color="", style="", label=None):
+        super().__init__(x, y)
+        self.steps = steps
+        self.symbol = symbol
+        self.color = color
+        self.bg_color = bg_color
+        self.style = style
+        self.interval = interval
+        self.label = label
+
+    def load(self):
+        for i in range(1, self.steps + 1):
+            # Nutze color_text (oder ctext, je nachdem wie du es genannt hast)
+            # Wichtig: Den Multiplikator * i außerhalb der Formatierung anwenden, damit nicht die Escape-Codes vervielfacht werden
+            bar_string = ctext(text=self.symbol, color=self.color, bg_color=self.bg_color, style=self.style) * i
+            draw_at(self.y, self.x, bar_string)
+            
+            if self.label:
+                # Berechne den Fortschritt und gib ihn als Integer an das Label weiter
+                percentage = int(i * (100 / self.steps))
+                self.label.set_percentage(percentage)
+                
+            time.sleep(self.interval)
+        self.length = len(bar_string)
+
+
+class Label(Element):
+    def __init__(self, text, element=None, x=None, y=None, color=WHITE, bg_color="", style=""):
+        self.text = text
+        # Positionsbestimmung basierend auf deinen Parametern
+        if x is not None and y is not None:
+            self.x = x
+            self.y = y
+        elif element is not None:
+            self.x = element.x
+            self.y = element.y - 1
+            
+            # MAGIE: Das Label meldet sich automatisch bei der LoadingBar an!
+            element.label = self
+        else:
+            self.x = 1
+            self.y = 1
+        self.length = len(text)
+        self.color = color
+        self.bg_color = bg_color
+        self.style = style
+        super().__init__(self.x, self.y)
+
+        draw_at(self.y, self.x, ctext(self.text, self.color, bg_color, self.style))
+        
+
+    def set_percentage(self, percentage):
+        # Zeichnet den Text + die Prozentzahl an seiner Position
+        output = f"{self.text} {percentage}%"
+        draw_at(self.y, self.x, ctext(output, self.color, self.bg_color, self.style))
+        self.length = len(output)
+
+class Spinner(Element):
+    def __init__(self, x, y, text="Loading", color=WHITE):
+        super().__init__(x, y)
+        self.text = text
+        self.color = color
+        self.phases = ["|", "/", "-", "\\"]
+        self.current_phase = 0
+        self.length = 1
+
+    def next(self):
+        symbol = self.phases[self.current_phase % 4]
+        output = f"{ctext(symbol, self.color)} {self.text}"
+        draw_at(self.y, self.x, output)
+        self.current_phase += 1
+
+    def spin(self, interval=0.1, length=5):
+        for i in range(int(length/interval)):
+            self.next()
+            time.sleep(interval)
+
+class LogBox(Element):
+    def __init__(self, x, y, height):
+        super().__init__(x, y)
+        self.height = height
+        self.text = []
+    
+    def add_entry(self, entry):
+        self.text.append(entry)
+        if len(self.text) > self.height:
+            self.text.pop(0)
+        if len(entry) > self.length:
+            self.length = len(entry)
+
+    def log(self):
+        for i, element in enumerate(self.text):
+            draw_at(self.y + i, self.x, element)
+    
+    def add_and_log(self, entry):
+        self.add_entry(entry)
+        self.log()
+
+class TestSection(Element):
+    def __init__(self, x, y, text, color=WHITE, bg_color=""):
+        super().__init__(x, y)
+        self.is_selected = False
+        self.text = text
+        self.color = color
+        self.bg_color = bg_color
+        self.length = len(self.text)
+        draw_at(self.y, self.x, ctext(text=self.text, color=self.color, bg_color=self.bg_color))
+    
+    def on_focus(self):
+        draw_at(self.y, self.x, ctext(text=self.text, color=self.color, bg_color=self.bg_color, style=REVERSE))
+        self.length = len(self.text)
+
+    def on_blur(self):
+        draw_at(self.y, self.x, ctext(text=self.text, color=self.color, bg_color=self.bg_color, style=RESET))
+        self.length = len(self.text)
+    
+    def select(self):
+        self.erase()
+        
+class Selection(Element):
+    def __init__(self, x, y, on_select=None):
+        super().__init__(x, y)
+        self.options = []
+        self.selected = False
+        self.highlighted_option = 0
+        self.on_select = on_select
+
+    def add_option(self, option):
+        self.options.append(option)
+        self.draw()
+
+    def remove_option(self, option):
+        self.options.remove(option)
+        self.draw()
+    
+    def draw(self):
+        if self.options:
+            for i, op in enumerate(self.options):
+                op.y = self.y + i
+                op.x = self.x
+                op.on_blur()
+    
+    def on_focus(self):
+        if self.options:
+            for i, op in enumerate(self.options):
+                op.on_focus()
+
+    def on_blur(self):
+        self.draw()
+        self.selected = False
+    
+    def select(self):
+        self.selected = True
+        self.draw()
+        self.options[self.highlighted_option].on_focus()
+
+    def change_highlight(self, direction):
+        if not self.options: return
+        self.options[self.highlighted_option].on_blur()
+        self.highlighted_option = (self.highlighted_option + direction) % len(self.options)
+        self.options[self.highlighted_option].on_focus()
+    
+    def input(self, key):
+        match(key):
+            case ",":
+                self.change_highlight(-1)
+            case ".":
+                self.change_highlight(1)
+
+    def get_value(self):
+        return self.options[self.highlighted_option].value
+    
+    def enter(self):
+        if self.on_select:
+            self.on_select(self.get_value())
+
+    
+class Option(Element):
+    def __init__(self, text, value, color=WHITE, bg_color=""):
+        self.text = text
+        self.color = color
+        self.bg_color = bg_color
+        self.value = value
+        self.x = None
+        self.y = None
+    
+    def on_blur(self):
+        draw_at(self.y, self.x, ctext(self.text, self.color, self.bg_color, RESET))
+
+    def on_focus(self):
+        draw_at(self.y, self.x, ctext(self.text, self.color, self.bg_color, REVERSE))
+
+
+class SelectBox(Element):
+    def __init__(self, text, x=None, y=None, frame_symbol="#", color=WHITE, bg_color="", style="", on_select=None):
+        super().__init__(x, y)
+        self.options = []
+        self.text = text
+        self.x = x
+        self.y = y
+        self.color = color
+        self.bg_color = bg_color
+        self.style = style
+        self.frame = frame_symbol
+        self.highlighted_option = 0
+        self.selected = False
+        self.on_select = on_select
+        
+        self._calculate_dimensions()
+
+        if not self.x:
+            self.x = (os.get_terminal_size().columns - self.width) // 2
+        if not self.y:
+            self.y = (os.get_terminal_size().lines - 7) // 2
+
+        self.height = 7
+        
+    
+    def draw(self):
+        self.erase()
+        draw_at(self.y, self.x, self.frame * (self.width+1))
+        for i in range(self.height):
+            draw_at(self.y + i, self.x, self.frame)
+            draw_at(self.y + i, self.x + self.width, self.frame)
+        draw_at(self.y + self.height - 1, self.x, self.frame * (self.width+1))
+
+        draw_at(self.y + 2, self.x + ((self.width + 1 - len(self.text)) // 2), self.text)
+        all_options = 1
+        for l, op in enumerate(self.options):
+            op.y = self.y + 4
+
+            if l == 0:
+                op.x = self.x + 2
+                all_options += len(op.text) + 1
+            else:
+                op.x = self.x + 1 + all_options
+                all_options += len(op.text) + 1
+                
+            op.on_blur()
+    
+    def add_option(self, option):
+        self.options.append(option)
+        self._calculate_dimensions()
+        self.draw()
+
+    def _calculate_dimensions(self):
+        count = 2
+        for option in self.options:
+            count += len(option.text) + 1
+        if count >= len(self.text) + 4:
+            self.width = count
+        else:
+            self.width = len(self.text) + 4
+
+        self.option_width = count
+        self.length = self.width + 1
+        
+    
+    def change_highlight(self, direction):
+        if not self.options: return
+        self.options[self.highlighted_option].on_blur()
+        self.highlighted_option = (self.highlighted_option + direction) % len(self.options)
+        self.options[self.highlighted_option].on_focus()
+
+    def input(self, key):
+        match(key):
+            case ",":
+                self.change_highlight(-1)
+            case ".":
+                self.change_highlight(1)
+    
+    def on_focus(self):
+        if self.options:
+            for i, op in enumerate(self.options):
+                op.on_focus()
+
+    def on_blur(self):
+        self.draw()
+        self.selected = False
+    
+    def select(self):
+        self.selected = True
+        self.draw()
+        self.options[self.highlighted_option].on_focus()
+
+    def enter(self):
+        if self.on_select:
+            self.on_select(self.options[self.highlighted_option].value)
