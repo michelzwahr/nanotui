@@ -37,6 +37,7 @@ class LoadingBar(Element):
         self.style = style
         self.interval = interval
         self.label = label
+        self.length = steps
 
     def load(self):
         for i in range(1, self.steps + 1):
@@ -51,7 +52,7 @@ class LoadingBar(Element):
                 self.label.set_percentage(percentage)
                 
             time.sleep(self.interval)
-        self.length = len(bar_string)
+        #self.length = len(bar_string)
 
 
 class Label(Element):
@@ -157,10 +158,14 @@ class Selection(Element):
 
     def add_option(self, option):
         self.options.append(option)
+        if len(option.text) > self.length:
+            self.length = len(option.text)
+        self.height = len(self.options)
         self.draw()
 
     def remove_option(self, option):
         self.options.remove(option)
+        self.height = len(self.options)
         self.draw()
     
     def draw(self):
@@ -316,3 +321,41 @@ class SelectBox(Element):
     def enter(self):
         if self.on_select:
             self.on_select(self.options[self.highlighted_option].value)
+
+class Frame(Element):
+    def __init__(self, symbol="#", element=None, x=None, y=None, height=None, width=None, color=WHITE, bg_color=""):
+        super().__init__(x, y)
+        self.symbol = symbol
+        self.element = element
+        if x and y:
+            self.x = x
+            self.y = y
+        elif element:
+            self.x = element.x -1
+            self.y = element.y - 1
+            
+            element.frame = self
+        else:
+            self.x = 1
+            self.y = 1
+
+        if width and height:
+            self.height = height
+            self.width = width
+        elif element:
+            self.width = element.width + 1 if hasattr(element, "width") else (element.length + 1 if hasattr(element, "length") else 0)
+            self.height = element.height + 1
+        else:
+            self.width = 5
+            self.height = 5
+        self.color = color
+        self.bg_color = bg_color
+
+        self.draw()
+
+    def draw(self):
+        draw_at(self.y, self.x, ctext(self.symbol * self.width, self.color, self.bg_color))
+        draw_at(self.y + self.height, self.x, ctext(self.symbol * self.width, self.color, self.bg_color))
+        for i in range(self.height + 1):
+            draw_at(self.y + i, self.x, ctext(self.symbol, self.color, self.bg_color))
+            draw_at(self.y + i, self.x + self.width, ctext(self.symbol, self.color, self.bg_color))
