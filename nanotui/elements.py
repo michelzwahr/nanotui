@@ -399,3 +399,17 @@ class HorizontalDivider(Element):
             draw_at(self.y, i, ctext(self.symbol, self.color, self.bg_color, self.style))
         self.width = os.get_terminal_size().columns
 
+class VerticalDivider(Element):
+    def __init__(self, x, symbol="|", color=WHITE, bg_color="", style=""):
+        super().__init__(x, 1)
+        self.symbol = symbol
+        self.color = color
+        self.bg_color = bg_color
+        self.style = style
+        self.height = os.get_terminal_size().lines
+        self.width = 1
+    
+    def draw(self):
+        for i in range(os.get_terminal_size().lines):
+            draw_at(i, self.x, ctext(self.symbol, self.color, self.bg_color, self.style))
+        self.height = os.get_terminal_size().lines
