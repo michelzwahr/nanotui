@@ -145,6 +145,9 @@ class App:
                                 self.change_layer(1)
                             elif self.layer == 1 and hasattr(self.selectable_elements[self.focused_element], "enter"):
                                 self.selectable_elements[self.focused_element].enter()
+                    case "r":
+                        clear_screen()
+                        self.draw_all()
                     case _:
                         pass
                     
