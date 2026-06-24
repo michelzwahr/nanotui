@@ -14,7 +14,6 @@ class Element:
 
     def erase(self):
         if self.width > 0:
-            # Überschreibe den alten Text mit der exakten Anzahl an Leerzeichen
             for i in range(self.height):
                 draw_at((self.y + i), self.x, " " * self.width)
             #self.length = 0
@@ -43,13 +42,10 @@ class LoadingBar(Element):
 
     def load(self):
         for i in range(1, self.steps + 1):
-            # Nutze color_text (oder ctext, je nachdem wie du es genannt hast)
-            # Wichtig: Den Multiplikator * i außerhalb der Formatierung anwenden, damit nicht die Escape-Codes vervielfacht werden
             bar_string = ctext(text=self.symbol, color=self.color, bg_color=self.bg_color, style=self.style) * i
             draw_at(self.y, self.x, bar_string)
             
             if self.label:
-                # Berechne den Fortschritt und gib ihn als Integer an das Label weiter
                 percentage = int(i * (100 / self.steps))
                 self.label.set_percentage(percentage)
                 
@@ -62,15 +58,12 @@ class LoadingBar(Element):
 class Label(Element):
     def __init__(self, text, element=None, x=None, y=None, color=WHITE, bg_color="", style=""):
         self.text = text
-        # Positionsbestimmung basierend auf deinen Parametern
         if x is not None and y is not None:
             self.x = x
             self.y = y
         elif element is not None:
             self.x = element.x
             self.y = element.y - 1
-            
-            # MAGIE: Das Label meldet sich automatisch bei der LoadingBar an!
             element.label = self
         else:
             self.x = 1
@@ -87,7 +80,6 @@ class Label(Element):
         
 
     def set_percentage(self, percentage):
-        # Zeichnet den Text + die Prozentzahl an seiner Position
         output = f"{self.text} {percentage}%"
         #draw_at(self.y, self.x, ctext(output, self.color, self.bg_color, self.style))
         self.draw()
@@ -262,19 +254,26 @@ class SelectBox(Element):
         self.highlighted_option = 0
         self.selected = False
         self.on_select = on_select
-        
-        self._calculate_dimensions()
-
-        if not self.x:
-            self.x = (os.get_terminal_size().columns - self.width) // 2
-        if not self.y:
-            self.y = (os.get_terminal_size().lines - 7) // 2
 
         self.height = 7
-        
+
+        if not self.x:
+            self.set_x = False
+        else: self.set_x = True
+
+        if not self.y:
+            self.set_y = False
+        else: self.set_y = True
+            
+        self._calculate_dimensions()
+    
+    def clear(self):
+        for i in range(self.height+1):
+                draw_at((self.y + i), self.x, " " * (self.width+1))
     
     def draw(self):
-        self.erase()
+        self.clear()
+        self._calculate_dimensions()
         draw_at(self.y, self.x, self.frame * (self.width))
         for i in range(self.height):
             draw_at(self.y + i, self.x, self.frame)
@@ -308,6 +307,11 @@ class SelectBox(Element):
             self.width = count
         else:
             self.width = len(self.text) + 4
+
+        if not self.set_x:
+            self.x = (os.get_terminal_size().columns - self.width) // 2
+        if not self.set_y:
+            self.y = (os.get_terminal_size().lines - 7) // 2
 
         #self.length = self.width + 1
         
@@ -380,3 +384,18 @@ class Frame(Element):
         for i in range(self.height + 1):
             draw_at(self.y + i, self.x, ctext(self.symbol, self.color, self.bg_color))
             draw_at(self.y + i, self.x + self.width, ctext(self.symbol, self.color, self.bg_color))
+
+class HorizontalDivider(Element):
+    def __init__(self, y, symbol="-", color=WHITE, bg_color="", style=""):
+        super().__init__(1, y)
+        self.symbol = symbol
+        self.color = color
+        self.bg_color = bg_color
+        self.style = style
+        self.width = os.get_terminal_size().columns
+
+    def draw(self):
+        for i in range(os.get_terminal_size().columns):
+            draw_at(self.y, i, ctext(self.symbol, self.color, self.bg_color, self.style))
+        self.width = os.get_terminal_size().columns
+

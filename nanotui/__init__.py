@@ -6,5 +6,5 @@ from .colors import (
     BG_RED, BG_GREEN, BG_BLUE, BG_YELLOW
 )
 from .screen import clear_screen, move_cursor, draw_at, hide_cursor, show_cursor
-from .elements import LoadingBar, Label, Spinner, LogBox, Selection, TestSection, Option, SelectBox, Frame
+from .elements import LoadingBar, Label, Spinner, LogBox, Selection, TestSection, Option, SelectBox, Frame, HorizontalDivider
 from .app import App
