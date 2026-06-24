@@ -1,6 +1,6 @@
 import sys
 import time
-from .screen import clear_screen
+from .screen import clear_screen, hide_cursor, show_cursor
 from .elements import SelectBox, Option
 import tty, termios, select
 
@@ -68,6 +68,10 @@ class App:
     def quit(self):
         pass
 
+    def draw_all(self):
+        for element in self.elements:
+            element.draw()
+
     def run(self):
 
         is_unix = False
@@ -81,6 +85,7 @@ class App:
             pass
 
         try: 
+            hide_cursor()
             while self.running:
 
                 for el in self.dynamic_elemets:
@@ -127,6 +132,7 @@ class App:
         finally:
             # Reißleine: Egal was passiert (selbst bei einem Absturz),
             # wir stellen das Terminal für den User wieder sauber her!
+            show_cursor()
             if is_unix:
                 termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
             clear_screen()

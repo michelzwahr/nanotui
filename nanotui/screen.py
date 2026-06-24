@@ -18,3 +18,12 @@ def draw_at(row, column, text):
     sys.stdout.write(text)
     sys.stdout.flush()
 
+def hide_cursor():
+    """Hides the terminal cursor until it is shown again."""
+    sys.stdout.write("\033[?25l")
+    sys.stdout.flush()
+
+def show_cursor():
+    """Shows the terminal cursor again."""
+    sys.stdout.write("\033[?25h")
+    sys.stdout.flush()
