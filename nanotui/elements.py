@@ -8,18 +8,20 @@ class Element:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.length = 0
+        self.width = 0
         self.height = 1
         self.is_focused = False
 
     def erase(self):
-        if self.length > 0:
+        if self.width > 0:
             # Überschreibe den alten Text mit der exakten Anzahl an Leerzeichen
             for i in range(self.height):
-                draw_at((self.y + i), self.x, " " * self.length)
+                draw_at((self.y + i), self.x, " " * self.width)
             #self.length = 0
             #self.height = 0
 
+    def draw(self):
+        pass
 
     def on_focus(self):
         pass
@@ -37,7 +39,7 @@ class LoadingBar(Element):
         self.style = style
         self.interval = interval
         self.label = label
-        self.length = steps
+        self.width = steps
 
     def load(self):
         for i in range(1, self.steps + 1):
@@ -52,7 +54,9 @@ class LoadingBar(Element):
                 self.label.set_percentage(percentage)
                 
             time.sleep(self.interval)
-        #self.length = len(bar_string)
+
+    def draw(self):
+        self.load()
 
 
 class Label(Element):
@@ -71,29 +75,34 @@ class Label(Element):
         else:
             self.x = 1
             self.y = 1
-        self.length = len(text)
+        self.width = len(text)
         self.color = color
         self.bg_color = bg_color
         self.style = style
+        self.output = self.text
         super().__init__(self.x, self.y)
 
-        draw_at(self.y, self.x, ctext(self.text, self.color, bg_color, self.style))
+    def draw(self):
+        draw_at(self.y, self.x, ctext(self.output, self.color, self.bg_color, self.style))
         
 
     def set_percentage(self, percentage):
         # Zeichnet den Text + die Prozentzahl an seiner Position
         output = f"{self.text} {percentage}%"
-        draw_at(self.y, self.x, ctext(output, self.color, self.bg_color, self.style))
-        self.length = len(output)
+        #draw_at(self.y, self.x, ctext(output, self.color, self.bg_color, self.style))
+        self.draw()
+        self.width = len(output)
 
 class Spinner(Element):
-    def __init__(self, x, y, text="Loading", color=WHITE):
+    def __init__(self, x, y, text="Loading", color=WHITE, interval=0.1, length=5):
         super().__init__(x, y)
         self.text = text
         self.color = color
         self.phases = ["|", "/", "-", "\\"]
         self.current_phase = 0
-        self.length = 1
+        self.width = 1
+        self.interval = interval
+        self.length = length
 
     def next(self):
         symbol = self.phases[self.current_phase % 4]
@@ -101,10 +110,13 @@ class Spinner(Element):
         draw_at(self.y, self.x, output)
         self.current_phase += 1
 
-    def spin(self, interval=0.1, length=5):
-        for i in range(int(length/interval)):
+    def spin(self):
+        for i in range(int(self.length/self.interval)):
             self.next()
-            time.sleep(interval)
+            time.sleep(self.interval)
+    
+    def draw(self):
+        self.spin()
 
 class LogBox(Element):
     def __init__(self, x, y, height):
@@ -116,8 +128,8 @@ class LogBox(Element):
         self.text.append(entry)
         if len(self.text) > self.height:
             self.text.pop(0)
-        if len(entry) > self.length:
-            self.length = len(entry)
+        if len(entry) > self.width:
+            self.width = len(entry)
 
     def log(self):
         for i, element in enumerate(self.text):
@@ -127,6 +139,9 @@ class LogBox(Element):
         self.add_entry(entry)
         self.log()
 
+    def draw(self):
+        self.log()
+
 class TestSection(Element):
     def __init__(self, x, y, text, color=WHITE, bg_color=""):
         super().__init__(x, y)
@@ -134,16 +149,18 @@ class TestSection(Element):
         self.text = text
         self.color = color
         self.bg_color = bg_color
-        self.length = len(self.text)
+        self.width = len(self.text)
+
+    def draw(self):
         draw_at(self.y, self.x, ctext(text=self.text, color=self.color, bg_color=self.bg_color))
     
     def on_focus(self):
         draw_at(self.y, self.x, ctext(text=self.text, color=self.color, bg_color=self.bg_color, style=REVERSE))
-        self.length = len(self.text)
+        self.width = len(self.text)
 
     def on_blur(self):
         draw_at(self.y, self.x, ctext(text=self.text, color=self.color, bg_color=self.bg_color, style=RESET))
-        self.length = len(self.text)
+        self.width = len(self.text)
     
     def select(self):
         self.erase()
@@ -158,8 +175,8 @@ class Selection(Element):
 
     def add_option(self, option):
         self.options.append(option)
-        if len(option.text) > self.length:
-            self.length = len(option.text)
+        if len(option.text) > self.width:
+            self.width = len(option.text)
         self.height = len(self.options)
         self.draw()
 
@@ -218,12 +235,17 @@ class Option(Element):
         self.value = value
         self.x = None
         self.y = None
+        self.height = 1
+        self.width = len(text)
     
     def on_blur(self):
         draw_at(self.y, self.x, ctext(self.text, self.color, self.bg_color, RESET))
 
     def on_focus(self):
         draw_at(self.y, self.x, ctext(self.text, self.color, self.bg_color, REVERSE))
+
+    def draw(self):
+        draw_at(self.y, self.x, ctext(self.text, self.color, self.bg_color))
 
 
 class SelectBox(Element):
@@ -253,13 +275,13 @@ class SelectBox(Element):
     
     def draw(self):
         self.erase()
-        draw_at(self.y, self.x, self.frame * (self.width+1))
+        draw_at(self.y, self.x, self.frame * (self.width))
         for i in range(self.height):
             draw_at(self.y + i, self.x, self.frame)
             draw_at(self.y + i, self.x + self.width, self.frame)
-        draw_at(self.y + self.height - 1, self.x, self.frame * (self.width+1))
+        draw_at(self.y + self.height - 1, self.x, self.frame * (self.width))
 
-        draw_at(self.y + 2, self.x + ((self.width + 1 - len(self.text)) // 2), self.text)
+        draw_at(self.y + 2, self.x + ((self.width - len(self.text)+1) // 2), self.text)
         all_options = 1
         for l, op in enumerate(self.options):
             op.y = self.y + 4
@@ -287,8 +309,7 @@ class SelectBox(Element):
         else:
             self.width = len(self.text) + 4
 
-        self.option_width = count
-        self.length = self.width + 1
+        #self.length = self.width + 1
         
     
     def change_highlight(self, direction):
