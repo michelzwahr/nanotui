@@ -4,13 +4,13 @@ from nanotui import App, Frame, Label, Selection, Option, clear_screen
 def main():
     app = App("Frame Selection Demo")
 
-    frame = Frame(symbol="#", x=10, y=4, width=36, height=12)
-    label = Label("Choose an option", x=2, y=1, parent=frame)
+    frame = Frame(symbol="#", x=10, y=4)
+
+    label = Label("Select an Option", x=2, y=1, parent=frame)
     selection = Selection(2, 4, parent=frame)
 
     def on_select(value):
-        label.text = f"Selected: {value}"
-        label.output = label.text
+        label.set_text(f"Selected: {value}")
         clear_screen()
         app.draw_all()
 
