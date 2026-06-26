@@ -11,8 +11,8 @@ class Element:
         self.y = y if y is not None else 0
         self.parent = None
         self.children = []
-        self.width = 0
-        self.height = 1
+        self.width = getattr(self, "width", 0)
+        self.height = getattr(self, "height", 1)
         self.is_focused = False
 
         if parent is not None:
@@ -25,11 +25,13 @@ class Element:
             child.parent.remove_child(child)
         child.parent = self
         self.children.append(child)
+        self.request_layout()
         return child
 
     def remove_child(self, child):
         self.children.remove(child)
         child.parent = None
+        self.request_layout()
         return child
     
     def add_children(self, *children):
@@ -40,11 +42,13 @@ class Element:
                 child.parent.remove_child(child)
             child.parent = self
             self.children.append(child)
+        self.request_layout()
 
     def remove_children(self, *children):
         for child in children:
             self.children.remove(child)
             child.parent = None
+        self.request_layout()
 
     def global_x(self):
         if self.parent is None:
@@ -73,6 +77,11 @@ class Element:
 
     def on_blur(self):
         self.is_focused = False
+
+    def request_layout(self):
+        if self.parent is not None and hasattr(self.parent, "_calculate_dimensions"):
+            self.parent._calculate_dimensions()
+            self.parent.request_layout()
 
 class LoadingBar(Element):
     def __init__(self, x, y, steps=5, symbol=".", interval=0.4, color=WHITE, bg_color="", style="", label=None, parent=None):
@@ -138,8 +147,16 @@ class Label(Element):
     def set_percentage(self, percentage):
         output = f"{self.text} {percentage}%"
         self.output = output
-        self.draw()
         self.width = len(output)
+        self.request_layout()
+        self.draw()
+
+    def set_text(self, text):
+        self.text = text
+        self.output = text
+        self.width = len(text)
+        self.request_layout()
+        self.draw()
 
 class Spinner(Element):
     def __init__(self, x, y, text="Loading", color=WHITE, interval=0.1, length=5, parent=None):
@@ -228,11 +245,13 @@ class Selection(Element):
         if len(option.text) > self.width:
             self.width = len(option.text)
         self.height = len(self.options)
+        self.request_layout()
         self.draw()
 
     def remove_option(self, option):
         self.remove_child(option)
         self.height = len(self.options)
+        self.request_layout()
         self.draw()
 
     def add_options(self, *options):
@@ -434,34 +453,70 @@ class Frame(Element):
         super().__init__(x if x is not None else 0, y if y is not None else 0, parent=parent)
         self.symbol = symbol
         self.element = element
+        self._explicit_width = width is not None
+        self._explicit_height = height is not None
         if x is not None and y is not None:
             self.x = x
             self.y = y
         elif element:
             self.x = element.x - 1
             self.y = element.y - 1
-            self.add_child(element)
             element.x = 1
             element.y = 1
+            self.add_child(element)
         else:
             self.x = 1
             self.y = 1
 
-        if width and height:
-            self.height = height
-            self.width = width
-        elif element:
-            self.width = element.width + 1 if hasattr(element, "width") else (element.length + 1 if hasattr(element, "length") else 0)
-            self.height = element.height + 1
-        else:
-            self.width = 5
-            self.height = 5
         self.color = color
         self.bg_color = bg_color
 
-        self.draw()
+        self._calculate_dimensions(width=width, height=height)
+        #self.draw()
+
+    def _child_width(self, child):
+        return getattr(child, "width", getattr(child, "length", 0))
+
+    def _child_height(self, child):
+        return getattr(child, "height", 1)
+
+    def _calculate_dimensions(self, width=None, height=None):
+        if self.children and not self._explicit_width:
+            max_width = 0
+            for child in self.children:
+                child_extent = child.x + self._child_width(child)
+                if child_extent > max_width:
+                    max_width = child_extent
+            self.width = max_width + 1
+        elif width is not None:
+            self.width = width
+        elif not self.children:
+            self.width = 5
+
+        if self.children and not self._explicit_height:
+            max_height = 0
+            for child in self.children:
+                child_extent = child.y + self._child_height(child)
+                if child_extent > max_height:
+                    max_height = child_extent
+            self.height = max_height + 1
+        elif height is not None:
+            self.height = height
+        elif not self.children:
+            self.height = 5
+
+    def add_child(self, child):
+        result = super().add_child(child)
+        self._calculate_dimensions()
+        return result
+
+    def remove_child(self, child):
+        result = super().remove_child(child)
+        self._calculate_dimensions()
+        return result
 
     def draw(self):
+        self._calculate_dimensions()
         draw_at(self.global_y(), self.global_x(), ctext(self.symbol * self.width, self.color, self.bg_color))
         draw_at(self.global_y() + self.height, self.global_x(), ctext(self.symbol * self.width, self.color, self.bg_color))
         for i in range(self.height + 1):
