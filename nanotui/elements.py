@@ -31,6 +31,20 @@ class Element:
         self.children.remove(child)
         child.parent = None
         return child
+    
+    def add_children(self, *children):
+        for child in children:
+            if child.parent is self:
+                continue
+            if child.parent is not None:
+                child.parent.remove_child(child)
+            child.parent = self
+            self.children.append(child)
+
+    def remove_children(self, *children):
+        for child in children:
+            self.children.remove(child)
+            child.parent = None
 
     def global_x(self):
         if self.parent is None:
@@ -220,6 +234,14 @@ class Selection(Element):
         self.remove_child(option)
         self.height = len(self.options)
         self.draw()
+
+    def add_options(self, *options):
+        for option in options:
+            self.add_option(option)
+
+    def remove_options(self, *options):
+        for option in options:
+            self.remove_option(option)
     
     def draw(self):
         if self.options:
@@ -343,6 +365,19 @@ class SelectBox(Element):
         self.add_child(option)
         self._calculate_dimensions()
         self.draw()
+
+    def remove_option(self, option):
+        self.remove_child(option)
+        self._calculate_dimensions()
+        self.draw()
+
+    def add_options(self, *options):
+        for option in options:
+            self.add_option(option)
+
+    def remove_options(self, *options):
+        for option in options:
+            self.remove_option(option)
 
     def _calculate_dimensions(self):
         count = 2
