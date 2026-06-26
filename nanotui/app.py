@@ -30,8 +30,6 @@ def get_key():
 class App:
     def __init__(self, name):
         self.elements = []
-        self.selectable_elements = []
-        self.dynamic_elemets = []
         self.focused_element = 0
         self.running = True
         self.layer = 0
@@ -39,46 +37,81 @@ class App:
         self.quit_box = SelectBox("Quit?", on_select=self.quit)
         self.option_quit = Option("Quit", 1)
         self.option_cancel = Option("Cancel", 0)
-        self.quit_box.add_option(self.option_quit)
-        self.quit_box.add_option(self.option_cancel)
+        self.quit_box.add_child(self.option_quit)
+        self.quit_box.add_child(self.option_cancel)
+        self.quit_box._calculate_dimensions()
 
     def add_element(self, element: object):
         self.elements.append(element)
 
-        if hasattr(element, "update"):
-            self.dynamic_elemets.append(element)
-
-        if hasattr(element, "select"):
-            self.selectable_elements.append(element)
-
     def remove_element(self, element: object):
         self.elements.remove(element)
 
-        if hasattr(element, "update"):
-            self.dynamic_elemets.remove(element)
+    def _walk_tree(self, elements=None):
+        if elements is None:
+            elements = self.elements
 
-        if hasattr(element, "select"):
-            self.selectable_elements.remove(element)
+        for element in elements:
+            yield element
+            children = getattr(element, "children", None)
+            if children:
+                yield from self._walk_tree(children)
+
+    def _selectable_elements(self):
+        return [element for element in self._walk_tree() if hasattr(element, "select")]
+
+    def _dynamic_elements(self):
+        return [element for element in self._walk_tree() if hasattr(element, "update")]
+
+    def _current_selectable(self):
+        selectable_elements = self._selectable_elements()
+        if not selectable_elements:
+            return None, selectable_elements
+        if self.focused_element >= len(selectable_elements):
+            self.focused_element = 0
+        return selectable_elements[self.focused_element], selectable_elements
 
     def change_focus(self, direction: int):
-        if not self.selectable_elements: return 
-        self.selectable_elements[self.focused_element].on_blur()
-        self.focused_element = (self.focused_element + direction) % len(self.selectable_elements)
-        self.selectable_elements[self.focused_element].on_focus()
+        current, selectable_elements = self._current_selectable()
+        if not selectable_elements:
+            return
+        if current is not None:
+            current.on_blur()
+        self.focused_element = (self.focused_element + direction) % len(selectable_elements)
+        selectable_elements[self.focused_element].on_focus()
 
     def change_layer(self, direction):
         self.layer += direction
+
+    def open_quit_dialog(self):
+        if self.quit_box not in self.elements:
+            clear_screen()
+            self.add_element(self.quit_box)
+            self.quit_box.highlighted_option = self.quit_box.options.index(self.option_cancel)
+        selectable_elements = self._selectable_elements()
+        if selectable_elements:
+            self.focused_element = selectable_elements.index(self.quit_box)
+        self.layer = 1
+        self.quit_box.select()
+
+    def close_quit_dialog(self):
+        if self.quit_box not in self.elements:
+            return
+
+        self.quit_box.erase()
+        self.remove_element(self.quit_box)
+        self.layer = 0
+        self.draw_all()
+        self.focused_element = 0
+        selectable_elements = self._selectable_elements()
+        if selectable_elements:
+            selectable_elements[self.focused_element].on_focus()
 
     def quit(self, value):
         if value == 1:
             self.running=False
         else:
-            if self.quit_box in self.elements:
-                self.change_layer(-1)
-                self.remove_element(self.quit_box)
-                self.draw_all()
-                self.focused_element = 0
-                self.selectable_elements[self.focused_element].on_focus()
+            self.close_quit_dialog()
 
 
     def draw_all(self):
@@ -99,14 +132,15 @@ class App:
 
         try: 
             hide_cursor()
-            if self.selectable_elements and self.layer == 0:
-                self.selectable_elements[self.focused_element].on_focus()
+            selectable_elements = self._selectable_elements()
+            if selectable_elements and self.layer == 0:
+                selectable_elements[self.focused_element].on_focus()
 
             old_size = []
 
             while self.running:
 
-                for el in self.dynamic_elemets:
+                for el in self._dynamic_elements():
                     el.update()
 
                 
@@ -119,32 +153,41 @@ class App:
 
                 match(key):
                     case "ESC":
-                        if self.layer == 0:
-                            clear_screen()
-                            self.add_element(self.quit_box)
-                            self.quit_box.highlighted_option = self.quit_box.options.index(self.option_cancel)
-                            self.focused_element = self.selectable_elements.index(self.quit_box)
-                            self.layer = 1
-                            self.quit_box.select()
-                        else:
+                        if self.quit_box in self.elements:
                             self.quit(0)
+                        elif self.layer == 1:
+                            current, selectable_elements = self._current_selectable()
+                            if current is not None:
+                                current.on_blur()
+                            self.layer = 0
+                            if selectable_elements:
+                                selectable_elements[self.focused_element].on_focus()
+                        else:
+                            self.open_quit_dialog()
+                    case "q":
+                        self.open_quit_dialog()
                     case ".":
                         if self.layer == 0:
                             self.change_focus(1)
                         else:
-                            self.selectable_elements[self.focused_element].input(key)
+                            selectable_elements = self._selectable_elements()
+                            if selectable_elements:
+                                selectable_elements[self.focused_element].input(key)
                     case ",":
                         if self.layer == 0:
                             self.change_focus(-1)
                         else:
-                            self.selectable_elements[self.focused_element].input(key)
+                            selectable_elements = self._selectable_elements()
+                            if selectable_elements:
+                                selectable_elements[self.focused_element].input(key)
                     case "ENTER":
-                        if self.selectable_elements:
+                        selectable_elements = self._selectable_elements()
+                        if selectable_elements:
                             if self.layer == 0:
-                                self.selectable_elements[self.focused_element].select()
+                                selectable_elements[self.focused_element].select()
                                 self.change_layer(1)
-                            elif self.layer == 1 and hasattr(self.selectable_elements[self.focused_element], "enter"):
-                                self.selectable_elements[self.focused_element].enter()
+                            elif self.layer == 1 and hasattr(selectable_elements[self.focused_element], "enter"):
+                                selectable_elements[self.focused_element].enter()
                     case "r":
                         clear_screen()
                         self.draw_all()
