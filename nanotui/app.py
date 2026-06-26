@@ -118,7 +118,7 @@ class App:
         for element in self.elements:
             element.draw()
 
-    def run(self):
+    def run(self, clearscreen=True):
 
         is_unix = False
         try:
@@ -132,6 +132,8 @@ class App:
 
         try: 
             hide_cursor()
+            if clearscreen:
+                clear_screen()
             selectable_elements = self._selectable_elements()
             if selectable_elements and self.layer == 0:
                 selectable_elements[self.focused_element].on_focus()
