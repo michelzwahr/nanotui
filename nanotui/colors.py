@@ -19,6 +19,7 @@ MAGENTA = "\033[35m"
 CYAN = "\033[36m"
 WHITE = "\033[37m"
 BLACK = "\033[30m"
+DEFAULT = "\033[39m"
 
 # --- BRIGHT COLORS ---
 BRIGHT_RED = "\033[91m"
@@ -38,6 +39,7 @@ BG_BLUE = "\033[44m"
 BG_MAGENTA = "\033[45m"
 BG_CYAN = "\033[46m"
 BG_WHITE = "\033[47m"
+BG_DEFAULT = "\033[49m"
 
 # --- BACKGROUND COLORS (Bright) ---
 BG_BRIGHT_RED = "\033[101m"
