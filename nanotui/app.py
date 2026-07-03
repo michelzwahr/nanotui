@@ -1,7 +1,7 @@
 import sys, os
 import time
 from .screen import clear_screen, hide_cursor, show_cursor
-from .elements import SelectBox, Option
+from .elements import SelectBox, Option, HorizontalDivider, Label
 import tty, termios, select
 
 def get_key():
@@ -34,12 +34,19 @@ class App:
         self.running = True
         self.layer = 0
         self.name = name
+
         self.quit_box = SelectBox("Quit?", on_select=self.quit)
         self.option_quit = Option("Quit", 1)
         self.option_cancel = Option("Cancel", 0)
         self.quit_box.add_child(self.option_quit)
         self.quit_box.add_child(self.option_cancel)
         self.quit_box._calculate_dimensions()
+
+        self.controls_line = HorizontalDivider(os.get_terminal_size().columns - 2)
+        self.add_element(self.controls_line)
+
+        self.controls = Label("[ESC] go layer up / quit\t[q] quit\t[,] go left\t[.] go right\t[ENTER] select", x=2, y=os.get_terminal_size().columns - 1)
+        self.add_element(self.controls)
 
     def add_element(self, element: object):
         self.elements.append(element)
@@ -145,11 +152,15 @@ class App:
                 for el in self._dynamic_elements():
                     el.update()
 
-                
                 current_terminal_size = [os.get_terminal_size().columns, os.get_terminal_size().lines]
+                self.controls_line.y = current_terminal_size[1] - 2
+                self.controls.y = current_terminal_size[1] - 1
+
                 if current_terminal_size != old_size:
+                    clear_screen()
                     self.draw_all()
                 old_size = [os.get_terminal_size().columns, os.get_terminal_size().lines]
+
                 
                 key = get_key()
 
