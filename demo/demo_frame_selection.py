@@ -2,7 +2,9 @@ from nanotui import *
 
 
 def main():
-    app = App("Frame Selection Demo")
+    app = App("Frame Selection Demo", True, "relative")
+
+    app.create_grid(2, 2)
 
     frame = Frame(y_symbol="|", x_symbol="-", x=10, y=4, color=DEFAULT)
 
@@ -10,6 +12,8 @@ def main():
     selection = Selection(2, 4, parent=frame)
 
     rechteck = RectArea(width=20, height=3, x=80, y=1, color=DEFAULT, bg_color=BG_RED)
+
+    selection2 = Selection(2, 2, parent=rechteck)
 
     knopf = Button(80, 10, "Button")
 
@@ -27,9 +31,18 @@ def main():
     selection.add_option(Option("Two", 2, color=DEFAULT))
     selection.add_option(Option("Three", 3, color=DEFAULT))
 
+    selection2.add_option(Option("One", 1, color=WHITE))
+    selection2.add_option(Option("Two", 2, color=DEFAULT))
+    selection2.add_option(Option("Three", 3, color=DEFAULT))
+
     app.add_element(frame)
     app.add_element(rechteck)
     app.add_element(knopf)
+    app.add_to_grid({
+        frame: (1, 1),
+        rechteck: (1, 2),
+        knopf: (2, 2)
+    })
     app.draw_all()
     app.run()
 

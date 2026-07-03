@@ -67,6 +67,8 @@ class Element:
 
     def draw_children(self):
         for child in self.children:
+            if hasattr(child, "layout"):
+                child.layout()
             child.draw()
 
     def draw(self):
@@ -243,6 +245,14 @@ class Selection(Element):
         self.selected = False
         self.highlighted_option = 0
         self.on_select = on_select
+        self.fill_width = True
+
+    def layout(self):
+        if self.parent is None or not self.fill_width:
+            return
+        available_width = self.parent.width - self.x - 1
+        if available_width > self.width:
+            self.width = available_width
 
     def add_option(self, option):
         self.add_child(option)
@@ -271,6 +281,7 @@ class Selection(Element):
             for i, op in enumerate(self.options):
                 op.y = i
                 op.x = 0
+                op.width = self.width
                 op.on_blur()
 
     def on_focus(self):
