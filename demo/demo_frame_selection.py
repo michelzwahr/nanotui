@@ -11,18 +11,25 @@ def main():
 
     rechteck = RectArea(width=20, height=3, x=80, y=1, color=DEFAULT, bg_color=BG_RED)
 
-    def on_select(value):
-        label.set_text(f"Selected: {value}")
+    knopf = Button(80, 10, "Button")
+
+    def on_select(value=None):
+        if value:
+            label.set_text(f"Selected: {value}")
+        else:
+            label.set_text("Knopf gedrückt")
         clear_screen()
         app.draw_all()
 
     selection.on_select = on_select
+    knopf.on_select = on_select
     selection.add_option(Option("One", 1, color=DEFAULT))
     selection.add_option(Option("Two", 2, color=DEFAULT))
     selection.add_option(Option("Three", 3, color=DEFAULT))
 
     app.add_element(frame)
     app.add_element(rechteck)
+    app.add_element(knopf)
     app.draw_all()
     app.run()
 

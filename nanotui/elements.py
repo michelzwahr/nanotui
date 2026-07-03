@@ -207,14 +207,15 @@ class LogBox(Element):
     def draw(self):
         self.log()
 
-class TestSection(Element):
-    def __init__(self, x, y, text, color=WHITE, bg_color="", parent=None):
+class Button(Element):
+    def __init__(self, x, y, text, on_select=None, color=WHITE, bg_color="", parent=None):
         super().__init__(x, y, parent=parent)
         self.is_selected = False
         self.text = text
         self.color = color
         self.bg_color = bg_color
         self.width = len(self.text)
+        self.on_select = on_select
 
     def draw(self):
         draw_at(self.global_y(), self.global_x(), ctext(text=self.text, color=self.color, bg_color=self.bg_color))
@@ -230,7 +231,10 @@ class TestSection(Element):
         self.width = len(self.text)
     
     def select(self):
-        self.erase()
+        if self.on_select:
+            self.on_select()
+        #self.is_focused = False
+
         
 class Selection(Element):
     def __init__(self, x, y, on_select=None, parent=None):

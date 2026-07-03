@@ -198,7 +198,8 @@ class App:
                         if selectable_elements:
                             if self.layer == 0:
                                 selectable_elements[self.focused_element].select()
-                                self.change_layer(1)
+                                if hasattr(selectable_elements[self.focused_element], "enter"):
+                                    self.change_layer(1)
                             elif self.layer == 1 and hasattr(selectable_elements[self.focused_element], "enter"):
                                 selectable_elements[self.focused_element].enter()
                     case "r":
