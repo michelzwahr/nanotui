@@ -1,13 +1,15 @@
-from nanotui import App, Frame, Label, Selection, Option, clear_screen
+from nanotui import *
 
 
 def main():
     app = App("Frame Selection Demo")
 
-    frame = Frame(symbol="#", x=10, y=4)
+    frame = Frame(y_symbol="|", x_symbol="-", x=10, y=4, color=DEFAULT)
 
-    label = Label("Select an Option", x=2, y=1, parent=frame)
+    label = Label("Select an Option", x=2, y=1, parent=frame, color=DEFAULT)
     selection = Selection(2, 4, parent=frame)
+
+    rechteck = RectArea(width=20, height=3, x=80, y=1, color=DEFAULT, bg_color=BG_RED)
 
     def on_select(value):
         label.set_text(f"Selected: {value}")
@@ -15,11 +17,12 @@ def main():
         app.draw_all()
 
     selection.on_select = on_select
-    selection.add_option(Option("One", 1))
-    selection.add_option(Option("Two", 2))
-    selection.add_option(Option("Three", 3))
+    selection.add_option(Option("One", 1, color=DEFAULT))
+    selection.add_option(Option("Two", 2, color=DEFAULT))
+    selection.add_option(Option("Three", 3, color=DEFAULT))
 
     app.add_element(frame)
+    app.add_element(rechteck)
     app.draw_all()
     app.run()
 

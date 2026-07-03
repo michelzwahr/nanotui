@@ -449,9 +449,10 @@ class SelectBox(Element):
             self.on_select(self.options[self.highlighted_option].value)
 
 class Frame(Element):
-    def __init__(self, symbol="#", element=None, x=None, y=None, height=None, width=None, color=WHITE, bg_color="", parent=None):
+    def __init__(self, x_symbol="#", y_symbol="#", element=None, x=None, y=None, height=None, width=None, color=WHITE, bg_color="", style="", parent=None):
         super().__init__(x if x is not None else 0, y if y is not None else 0, parent=parent)
-        self.symbol = symbol
+        self.x_symbol = x_symbol
+        self.y_symbol = y_symbol
         self.element = element
         self._explicit_width = width is not None
         self._explicit_height = height is not None
@@ -470,6 +471,7 @@ class Frame(Element):
 
         self.color = color
         self.bg_color = bg_color
+        self.style = style
 
         self._calculate_dimensions(width=width, height=height)
         #self.draw()
@@ -490,7 +492,7 @@ class Frame(Element):
             self.width = max_width + 1
         elif width is not None:
             self.width = width
-        elif not self.children:
+        elif not self.children and not self._explicit_width:
             self.width = 5
 
         if self.children and not self._explicit_height:
@@ -502,7 +504,7 @@ class Frame(Element):
             self.height = max_height + 1
         elif height is not None:
             self.height = height
-        elif not self.children:
+        elif not self.children and not self._explicit_height:
             self.height = 5
 
     def add_child(self, child):
@@ -517,15 +519,15 @@ class Frame(Element):
 
     def draw(self):
         self._calculate_dimensions()
-        draw_at(self.global_y(), self.global_x(), ctext(self.symbol * self.width, self.color, self.bg_color))
-        draw_at(self.global_y() + self.height, self.global_x(), ctext(self.symbol * self.width, self.color, self.bg_color))
+        draw_at(self.global_y(), self.global_x(), ctext(self.x_symbol * self.width, self.color, self.bg_color, self.style))
+        draw_at(self.global_y() + self.height, self.global_x(), ctext(self.x_symbol * self.width, self.color, self.bg_color, self.style))
         for i in range(self.height + 1):
-            draw_at(self.global_y() + i, self.global_x(), ctext(self.symbol, self.color, self.bg_color))
-            draw_at(self.global_y() + i, self.global_x() + self.width, ctext(self.symbol, self.color, self.bg_color))
+            draw_at(self.global_y() + i, self.global_x(), ctext(self.y_symbol, self.color, self.bg_color, self.style))
+            draw_at(self.global_y() + i, self.global_x() + self.width, ctext(self.y_symbol, self.color, self.bg_color, self.style))
         self.draw_children()
 
 class HorizontalDivider(Element):
-    def __init__(self, y, symbol="-", color=WHITE, bg_color="", style="", parent=None):
+    def __init__(self, y, symbol="─", color=WHITE, bg_color="", style="", parent=None):
         super().__init__(1, y, parent=parent)
         self.symbol = symbol
         self.color = color
@@ -539,7 +541,7 @@ class HorizontalDivider(Element):
         self.width = os.get_terminal_size().columns
 
 class VerticalDivider(Element):
-    def __init__(self, x, symbol="|", color=WHITE, bg_color="", style="", parent=None):
+    def __init__(self, x, symbol="│", color=WHITE, bg_color="", style="", parent=None):
         super().__init__(x, 1, parent=parent)
         self.symbol = symbol
         self.color = color
@@ -552,3 +554,25 @@ class VerticalDivider(Element):
         for i in range(os.get_terminal_size().lines):
             draw_at(i, self.global_x(), ctext(self.symbol, self.color, self.bg_color, self.style))
         self.height = os.get_terminal_size().lines
+
+class RectArea(Frame):
+    def __init__(self, element=None, x=None, y=None, height=None, width=None, color=WHITE, bg_color="", style="", parent=None):
+        super().__init__(element=element, x=x, y=y, height=height, width=width, color=color, bg_color=bg_color, style=style, parent=parent)
+
+    def draw(self):
+        self._calculate_dimensions()
+        tl, tr, bl, br = "┌", "┐", "└", "┘"
+        h = "─"
+        v = "│"
+
+        t = tl + h * (self.width-2) + tr
+        m = v + " " * (self.width-2) + v
+        b = bl + h * (self.width-2) + br
+
+        draw_at(self.y, self.x, ctext(t, self.color, self.bg_color))
+        draw_at(self.y + self.height - 1, self.x, ctext(b, self.color, self.bg_color))
+
+        for i in range(self.y + 1, self.y + self.height -1):
+            draw_at(i, self.x, ctext(m, self.color, self.bg_color))
+
+        self.draw_children()
