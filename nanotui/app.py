@@ -129,8 +129,8 @@ class App:
             element.draw()
 
     def create_grid(self, rows, columns):
-        self.grid = [[None for _ in range(columns)] + [[0, 0, 0]] for _ in range(rows)]
-        self.grid.append([[0, 0, 0] for _ in range(columns)])
+        self.grid = [[None for _ in range(columns)] + [[1, 0, 0]] for _ in range(rows)]
+        self.grid.append([[1, 0, 0] for _ in range(columns)])
 
 
     def config_row(self, row, weight):
@@ -172,18 +172,45 @@ class App:
             rows = len(self.grid) - 1
             columns = len(self.grid[0]) - 1
 
-            for row in range(rows):
-                self.grid[row][-1][2] = (t_height // rows) - 1
-                self.grid[row][-1][1] = (t_height // rows) * row + 1
+            def build_spans(weights, total_size):
+                total_weight = sum(max(weight, 1) for weight in weights)
+                spans = []
+                start = 1
+                remaining = total_size
 
-            for col in range(columns):
-                self.grid[-1][col][2] = (t_width // columns) - 1
-                self.grid[-1][col][1] = (t_width // columns) * col + 1
+                for index, weight in enumerate(weights):
+                    normalized_weight = max(weight, 1)
+                    if index == len(weights) - 1:
+                        span = remaining
+                    else:
+                        span = max(1, (total_size * normalized_weight) // total_weight)
+                        remaining -= span
+                    spans.append((start, span))
+                    start += span
+
+                return spans
+
+            row_spans = build_spans([self.grid[row][-1][0] for row in range(rows)], t_height)
+            col_spans = build_spans([self.grid[-1][col][0] for col in range(columns)], t_width)
+
+            for row, (start, span) in enumerate(row_spans):
+                self.grid[row][-1][1] = start
+                self.grid[row][-1][2] = span - 1
+
+            for col, (start, span) in enumerate(col_spans):
+                self.grid[-1][col][1] = start
+                self.grid[-1][col][2] = span - 1
 
             for element in self.elements:
                 pos_col, pos_row = self._find_element_in_grid(element)
-                element.width = self.grid[-1][pos_col][2]
-                element.height = self.grid[pos_row][-1][2]
+                if hasattr(element, "set_size"):
+                    element.set_size(
+                        width=self.grid[-1][pos_col][2],
+                        height=self.grid[pos_row][-1][2],
+                    )
+                else:
+                    element.width = self.grid[-1][pos_col][2]
+                    element.height = self.grid[pos_row][-1][2]
                 element.x = self.grid[-1][pos_col][1]
                 element.y = self.grid[pos_row][-1][1]
             
@@ -227,6 +254,8 @@ class App:
                 self.controls.y = current_terminal_size[1] - 1
 
                 if current_terminal_size != old_size:
+                    if self.use_grid:
+                        self.update_grid()
                     clear_screen()
                     self.draw_all()
                 old_size = [os.get_terminal_size().columns, os.get_terminal_size().lines]

@@ -6,13 +6,21 @@ import os
 
 
 class Element:
-    def __init__(self, x=0, y=0, parent=None):
+    def __init__(self, x=0, y=0, parent=None, width=None, height=None):
         self.x = x if x is not None else 0
         self.y = y if y is not None else 0
         self.parent = None
         self.children = []
-        self.width = getattr(self, "width", 0)
-        self.height = getattr(self, "height", 1)
+        self._explicit_width = width is not None
+        self._explicit_height = height is not None
+        if width is not None:
+            self.width = width
+        else:
+            self.width = getattr(self, "width", 0)
+        if height is not None:
+            self.height = height
+        else:
+            self.height = getattr(self, "height", 1)
         self.is_focused = False
 
         if parent is not None:
@@ -80,14 +88,30 @@ class Element:
     def on_blur(self):
         self.is_focused = False
 
+    def set_width(self, width):
+        self.width = width
+        self._explicit_width = True
+        self.request_layout()
+
+    def set_height(self, height):
+        self.height = height
+        self._explicit_height = True
+        self.request_layout()
+
+    def set_size(self, width=None, height=None):
+        if width is not None:
+            self.set_width(width)
+        if height is not None:
+            self.set_height(height)
+
     def request_layout(self):
         if self.parent is not None and hasattr(self.parent, "_calculate_dimensions"):
             self.parent._calculate_dimensions()
             self.parent.request_layout()
 
 class LoadingBar(Element):
-    def __init__(self, x, y, steps=5, symbol=".", interval=0.4, color=WHITE, bg_color="", style="", label=None, parent=None):
-        super().__init__(x, y, parent=parent)
+    def __init__(self, x, y, steps=5, symbol=".", interval=0.4, color=WHITE, bg_color="", style="", label=None, parent=None, width=None, height=None):
+        super().__init__(x, y, parent=parent, width=width, height=height)
         self.steps = steps
         self.symbol = symbol
         self.color = color
@@ -95,7 +119,10 @@ class LoadingBar(Element):
         self.style = style
         self.interval = interval
         self.label = label
-        self.width = steps
+        if width is None:
+            self.width = steps
+        if height is None:
+            self.height = 1
 
         if self.label is not None and self.label.parent is None:
             self.add_child(self.label)
@@ -121,7 +148,7 @@ class LoadingBar(Element):
 
 
 class Label(Element):
-    def __init__(self, text, element=None, x=None, y=None, color=WHITE, bg_color="", style="", parent=None):
+    def __init__(self, text, element=None, x=None, y=None, color=WHITE, bg_color="", style="", parent=None, width=None, height=None):
         self.text = text
         if element is not None and parent is None:
             parent = element
@@ -135,39 +162,52 @@ class Label(Element):
         else:
             self.x = 1
             self.y = 1
-        self.width = len(text)
+        if width is None:
+            self.width = len(text)
+        else:
+            self.width = width
+        if height is None:
+            self.height = 1
+        else:
+            self.height = height
         self.color = color
         self.bg_color = bg_color
         self.style = style
         self.output = self.text
-        super().__init__(self.x, self.y, parent=parent)
+        super().__init__(self.x, self.y, parent=parent, width=width, height=height)
 
     def draw(self):
-        draw_at(self.global_y(), self.global_x(), ctext(self.output, self.color, self.bg_color, self.style))
+        text = self.output
+        #if self.width > 0:
+        #    text = text[:self.width].ljust(self.width)
+        draw_at(self.global_y(), self.global_x(), ctext(text, self.color, self.bg_color, self.style))
         
 
     def set_percentage(self, percentage):
         output = f"{self.text} {percentage}%"
         self.output = output
-        self.width = len(output)
+        if not self._explicit_width:
+            self.width = len(output)
         self.request_layout()
         self.draw()
 
     def set_text(self, text):
         self.text = text
         self.output = text
-        self.width = len(text)
+        if not self._explicit_width:
+            self.width = len(text)
         self.request_layout()
         self.draw()
 
 class Spinner(Element):
-    def __init__(self, x, y, text="Loading", color=WHITE, interval=0.1, length=5, parent=None):
-        super().__init__(x, y, parent=parent)
+    def __init__(self, x, y, text="Loading", color=WHITE, interval=0.1, length=5, parent=None, width=None, height=None):
+        super().__init__(x, y, parent=parent, width=width, height=height)
         self.text = text
         self.color = color
         self.phases = ["|", "/", "-", "\\"]
         self.current_phase = 0
-        self.width = 1
+        if width is None:
+            self.width = 1
         self.interval = interval
         self.length = length
 
@@ -186,9 +226,10 @@ class Spinner(Element):
         self.spin()
 
 class LogBox(Element):
-    def __init__(self, x, y, height, parent=None):
-        super().__init__(x, y, parent=parent)
-        self.height = height
+    def __init__(self, x, y, height=None, parent=None, width=None):
+        super().__init__(x, y, parent=parent, width=width, height=height)
+        if height is not None:
+            self.height = height
         self.text = []
     
     def add_entry(self, entry):
@@ -210,27 +251,33 @@ class LogBox(Element):
         self.log()
 
 class Button(Element):
-    def __init__(self, x, y, text, on_select=None, color=WHITE, bg_color="", parent=None):
-        super().__init__(x, y, parent=parent)
+    def __init__(self, x, y, text, on_select=None, color=WHITE, bg_color="", parent=None, width=None, height=None):
+        super().__init__(x, y, parent=parent, width=width, height=height)
         self.is_selected = False
         self.text = text
         self.color = color
         self.bg_color = bg_color
-        self.width = len(self.text)
+        if width is None:
+            self.width = len(self.text)
+        if height is None:
+            self.height = 1
         self.on_select = on_select
 
     def draw(self):
-        draw_at(self.global_y(), self.global_x(), ctext(text=self.text, color=self.color, bg_color=self.bg_color))
+        text = self.text
+        #if self.width > 0:
+        #    text = text[:self.width].ljust(self.width)
+        draw_at(self.global_y(), self.global_x(), ctext(text=text, color=self.color, bg_color=self.bg_color))
     
     def on_focus(self):
         super().on_focus()
+        #text = self.text[:self.width].ljust(self.width)
         draw_at(self.global_y(), self.global_x(), ctext(text=self.text, color=self.color, bg_color=self.bg_color, style=REVERSE))
-        self.width = len(self.text)
 
     def on_blur(self):
         super().on_blur()
+        #text = self.text[:self.width].ljust(self.width)
         draw_at(self.global_y(), self.global_x(), ctext(text=self.text, color=self.color, bg_color=self.bg_color, style=RESET))
-        self.width = len(self.text)
     
     def select(self):
         if self.on_select:
@@ -239,8 +286,8 @@ class Button(Element):
 
         
 class Selection(Element):
-    def __init__(self, x, y, on_select=None, parent=None):
-        super().__init__(x, y, parent=parent)
+    def __init__(self, x, y, on_select=None, parent=None, width=None, height=None):
+        super().__init__(x, y, parent=parent, width=width, height=height)
         self.options = self.children
         self.selected = False
         self.highlighted_option = 0
@@ -248,7 +295,7 @@ class Selection(Element):
         self.fill_width = True
 
     def layout(self):
-        if self.parent is None or not self.fill_width:
+        if self.parent is None or not self.fill_width or self._explicit_width:
             return
         available_width = self.parent.width - self.x - 1
         if available_width > self.width:
@@ -256,15 +303,17 @@ class Selection(Element):
 
     def add_option(self, option):
         self.add_child(option)
-        if len(option.text) > self.width:
+        if not self._explicit_width and len(option.text) > self.width:
             self.width = len(option.text)
-        self.height = len(self.options)
+        if not self._explicit_height:
+            self.height = len(self.options)
         self.request_layout()
         self.draw()
 
     def remove_option(self, option):
         self.remove_child(option)
-        self.height = len(self.options)
+        if not self._explicit_height:
+            self.height = len(self.options)
         self.request_layout()
         self.draw()
 
@@ -281,7 +330,8 @@ class Selection(Element):
             for i, op in enumerate(self.options):
                 op.y = i
                 op.x = 0
-                op.width = self.width
+                if not op._explicit_width:
+                    op.width = self.width
                 op.on_blur()
 
     def on_focus(self):
@@ -322,30 +372,35 @@ class Selection(Element):
 
     
 class Option(Element):
-    def __init__(self, text, value, color=WHITE, bg_color="", parent=None):
-        super().__init__(0, 0, parent=parent)
+    def __init__(self, text, value, color=WHITE, bg_color="", parent=None, width=None, height=None):
+        super().__init__(0, 0, parent=parent, width=width, height=height)
         self.text = text
         self.color = color
         self.bg_color = bg_color
         self.value = value
-        self.height = 1
-        self.width = len(text)
+        if width is None:
+            self.width = len(text)
+        if height is None:
+            self.height = 1
     
     def on_blur(self):
         self.is_focused = False
+        #text = self.text[:self.width].ljust(self.width)
         draw_at(self.global_y(), self.global_x(), ctext(self.text, self.color, self.bg_color, RESET))
 
     def on_focus(self):
         self.is_focused = True
+        #text = self.text[:self.width].ljust(self.width)
         draw_at(self.global_y(), self.global_x(), ctext(self.text, self.color, self.bg_color, REVERSE))
 
     def draw(self):
+        #text = self.text[:self.width].ljust(self.width)
         draw_at(self.global_y(), self.global_x(), ctext(self.text, self.color, self.bg_color))
 
 
 class SelectBox(Element):
-    def __init__(self, text, x=None, y=None, frame_symbol="#", color=WHITE, bg_color="", style="", on_select=None, parent=None):
-        super().__init__(x if x is not None else 0, y if y is not None else 0, parent=parent)
+    def __init__(self, text, x=None, y=None, frame_symbol="#", color=WHITE, bg_color="", style="", on_select=None, parent=None, width=None, height=None):
+        super().__init__(x if x is not None else 0, y if y is not None else 0, parent=parent, width=width, height=height)
         self.options = self.children
         self.text = text
         self.color = color
@@ -356,7 +411,8 @@ class SelectBox(Element):
         self.selected = False
         self.on_select = on_select
 
-        self.height = 7
+        if height is None:
+            self.height = 7
 
         if x is None:
             self.set_x = False
@@ -375,11 +431,13 @@ class SelectBox(Element):
     def draw(self):
         self.clear()
         self._calculate_dimensions()
-        draw_at(self.global_y(), self.global_x(), self.frame * (self.width))
-        for i in range(self.height):
+        box_width = max(self.width, 2)
+        box_height = max(self.height, 2)
+        draw_at(self.global_y(), self.global_x(), self.frame * box_width)
+        for i in range(box_height):
             draw_at(self.global_y() + i, self.global_x(), self.frame)
-            draw_at(self.global_y() + i, self.global_x() + self.width, self.frame)
-        draw_at(self.global_y() + self.height - 1, self.global_x(), self.frame * (self.width))
+            draw_at(self.global_y() + i, self.global_x() + box_width - 1, self.frame)
+        draw_at(self.global_y() + box_height - 1, self.global_x(), self.frame * box_width)
 
         draw_at(self.global_y() + 2, self.global_x() + ((self.width - len(self.text)+1) // 2), self.text)
         all_options = 1
@@ -414,13 +472,14 @@ class SelectBox(Element):
             self.remove_option(option)
 
     def _calculate_dimensions(self):
-        count = 2
-        for option in self.options:
-            count += len(option.text) + 1
-        if count >= len(self.text) + 4:
-            self.width = count
-        else:
-            self.width = len(self.text) + 4
+        if not self._explicit_width:
+            count = 2
+            for option in self.options:
+                count += len(option.text) + 1
+            if count >= len(self.text) + 4:
+                self.width = count
+            else:
+                self.width = len(self.text) + 4
 
         if not self.set_x:
             self.x = (os.get_terminal_size().columns - self.width) // 2
@@ -498,29 +557,31 @@ class Frame(Element):
         return getattr(child, "height", 1)
 
     def _calculate_dimensions(self, width=None, height=None):
-        if self.children and not self._explicit_width:
+        if width is not None:
+            self.width = width
+            self._explicit_width = True
+        elif self.children and not self._explicit_width:
             max_width = 0
             for child in self.children:
                 child_extent = child.x + self._child_width(child)
                 if child_extent > max_width:
                     max_width = child_extent
             self.width = max_width + 1
-        elif width is not None:
-            self.width = width
         elif not self.children and not self._explicit_width:
-            self.width = 5
+            self.width = 2
 
-        if self.children and not self._explicit_height:
+        if height is not None:
+            self.height = height
+            self._explicit_height = True
+        elif self.children and not self._explicit_height:
             max_height = 0
             for child in self.children:
                 child_extent = child.y + self._child_height(child)
                 if child_extent > max_height:
                     max_height = child_extent
             self.height = max_height + 1
-        elif height is not None:
-            self.height = height
         elif not self.children and not self._explicit_height:
-            self.height = 5
+            self.height = 2
 
     def add_child(self, child):
         result = super().add_child(child)
@@ -534,41 +595,50 @@ class Frame(Element):
 
     def draw(self):
         self._calculate_dimensions()
-        draw_at(self.global_y(), self.global_x(), ctext(self.x_symbol * self.width, self.color, self.bg_color, self.style))
-        draw_at(self.global_y() + self.height, self.global_x(), ctext(self.x_symbol * self.width, self.color, self.bg_color, self.style))
-        for i in range(self.height + 1):
+        box_width = max(self.width, 2)
+        box_height = max(self.height, 2)
+        draw_at(self.global_y(), self.global_x(), ctext(self.x_symbol * box_width, self.color, self.bg_color, self.style))
+        draw_at(self.global_y() + box_height - 1, self.global_x(), ctext(self.x_symbol * box_width, self.color, self.bg_color, self.style))
+        for i in range(box_height):
             draw_at(self.global_y() + i, self.global_x(), ctext(self.y_symbol, self.color, self.bg_color, self.style))
-            draw_at(self.global_y() + i, self.global_x() + self.width, ctext(self.y_symbol, self.color, self.bg_color, self.style))
+            draw_at(self.global_y() + i, self.global_x() + box_width - 1, ctext(self.y_symbol, self.color, self.bg_color, self.style))
         self.draw_children()
 
 class HorizontalDivider(Element):
-    def __init__(self, y, symbol="─", color=WHITE, bg_color="", style="", parent=None):
-        super().__init__(1, y, parent=parent)
+    def __init__(self, y, symbol="─", color=WHITE, bg_color="", style="", parent=None, width=None, height=None):
+        super().__init__(1, y, parent=parent, width=width, height=height)
         self.symbol = symbol
         self.color = color
         self.bg_color = bg_color
         self.style = style
-        self.width = os.get_terminal_size().columns
+        if width is None:
+            self.width = os.get_terminal_size().columns
+        if height is None:
+            self.height = 1
 
     def draw(self):
-        for i in range(os.get_terminal_size().columns):
+        width = self.width if self._explicit_width else os.get_terminal_size().columns
+        for i in range(width):
             draw_at(self.global_y(), i, ctext(self.symbol, self.color, self.bg_color, self.style))
-        self.width = os.get_terminal_size().columns
+        self.width = width
 
 class VerticalDivider(Element):
-    def __init__(self, x, symbol="│", color=WHITE, bg_color="", style="", parent=None):
-        super().__init__(x, 1, parent=parent)
+    def __init__(self, x, symbol="│", color=WHITE, bg_color="", style="", parent=None, width=None, height=None):
+        super().__init__(x, 1, parent=parent, width=width, height=height)
         self.symbol = symbol
         self.color = color
         self.bg_color = bg_color
         self.style = style
-        self.height = os.get_terminal_size().lines
-        self.width = 1
+        if height is None:
+            self.height = os.get_terminal_size().lines
+        if width is None:
+            self.width = 1
     
     def draw(self):
-        for i in range(os.get_terminal_size().lines):
+        height = self.height if self._explicit_height else os.get_terminal_size().lines
+        for i in range(height):
             draw_at(i, self.global_x(), ctext(self.symbol, self.color, self.bg_color, self.style))
-        self.height = os.get_terminal_size().lines
+        self.height = height
 
 class RectArea(Frame):
     def __init__(self, element=None, x=None, y=None, height=None, width=None, color=WHITE, bg_color="", style="", parent=None):
@@ -580,14 +650,16 @@ class RectArea(Frame):
         h = "─"
         v = "│"
 
-        t = tl + h * (self.width-2) + tr
-        m = v + " " * (self.width-2) + v
-        b = bl + h * (self.width-2) + br
+        box_width = max(self.width, 2)
+        box_height = max(self.height, 2)
+        t = tl + h * (box_width - 2) + tr
+        m = v + " " * (box_width - 2) + v
+        b = bl + h * (box_width - 2) + br
 
         draw_at(self.y, self.x, ctext(t, self.color, self.bg_color))
-        draw_at(self.y + self.height - 1, self.x, ctext(b, self.color, self.bg_color))
+        draw_at(self.y + box_height - 1, self.x, ctext(b, self.color, self.bg_color))
 
-        for i in range(self.y + 1, self.y + self.height -1):
+        for i in range(self.y + 1, self.y + box_height -1):
             draw_at(i, self.x, ctext(m, self.color, self.bg_color))
 
         self.draw_children()

@@ -17,6 +17,8 @@ def main():
 
     knopf = Button(80, 10, "Button")
 
+    rahmen = Frame()
+
     def on_select(value=None):
         if value:
             label.set_text(f"Selected: {value}")
@@ -41,8 +43,10 @@ def main():
     app.add_to_grid({
         frame: (1, 1),
         rechteck: (1, 2),
-        knopf: (2, 2)
+        knopf: (2, 2),
+        rahmen: (2, 1)
     })
+    app.config_column(1, 2)
     app.draw_all()
     app.run()
 
