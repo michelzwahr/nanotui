@@ -104,6 +104,16 @@ class Element:
         if height is not None:
             self.set_height(height)
 
+    def available_width(self):
+        if self.parent is None:
+            return self.width
+        return max(0, self.parent.width - self.x - 1)
+
+    def available_height(self):
+        if self.parent is None:
+            return self.height
+        return max(0, self.parent.height - self.y - 1)
+
     def request_layout(self):
         if self.parent is not None and hasattr(self.parent, "_calculate_dimensions"):
             self.parent._calculate_dimensions()
@@ -228,19 +238,26 @@ class Spinner(Element):
 class LogBox(Element):
     def __init__(self, x, y, height=None, parent=None, width=None):
         super().__init__(x, y, parent=parent, width=width, height=height)
-        if height is not None:
-            self.height = height
         self.text = []
     
     def add_entry(self, entry):
         self.text.append(entry)
-        if len(self.text) > self.height:
+        max_entries = self.height
+        if not self._explicit_height:
+            max_entries = self.available_height()
+        if max_entries > 0 and len(self.text) > max_entries:
             self.text.pop(0)
         if len(entry) > self.width:
             self.width = len(entry)
 
     def log(self):
-        for i, element in enumerate(self.text):
+        visible_height = self.height
+        if not self._explicit_height:
+            visible_height = self.available_height()
+        elif self.parent is not None:
+            visible_height = min(visible_height, self.available_height())
+
+        for i, element in enumerate(self.text[:visible_height]):
             draw_at(self.global_y() + i, self.global_x(), element)
     
     def add_and_log(self, entry):
@@ -327,7 +344,11 @@ class Selection(Element):
     
     def draw(self):
         if self.options:
-            for i, op in enumerate(self.options):
+            visible_height = len(self.options)
+            if self.parent is not None and not self._explicit_height:
+                visible_height = min(visible_height, self.available_height())
+
+            for i, op in enumerate(self.options[:visible_height]):
                 op.y = i
                 op.x = 0
                 if not op._explicit_width:
@@ -441,7 +462,12 @@ class SelectBox(Element):
 
         draw_at(self.global_y() + 2, self.global_x() + ((self.width - len(self.text)+1) // 2), self.text)
         all_options = 1
-        for l, op in enumerate(self.options):
+        visible_options = self.options
+        if self.parent is not None:
+            available_option_rows = max(0, self.available_height() - 4)
+            visible_options = self.options[:available_option_rows]
+
+        for l, op in enumerate(visible_options):
             op.y = 4
 
             if l == 0:
@@ -663,3 +689,57 @@ class RectArea(Frame):
             draw_at(i, self.x, ctext(m, self.color, self.bg_color))
 
         self.draw_children()
+
+class ProgressBar(Element):
+    def __init__(self, x=0, y=0, end_symbols=["[", "]"], fill_symbol="█", unfilled_symbol="░", unfilled_color=DEFAULT, color=DEFAULT, bg_color=DEFAULT, parent=None, width=None):
+        super().__init__(x, y, parent, width, height=1)
+        self.start_symbol = end_symbols[0]
+        self.end_symbol = end_symbols[1]
+        self.color = color
+        self.bg_color = bg_color
+        self.filled = 0
+        self.unfilled = unfilled_symbol
+        self.unfilled_color = unfilled_color
+        self.progress_lst = []
+        self.fillable_width = self.width-2
+        self.filled_width = 0
+        self.fill_symbol = fill_symbol
+        
+    def draw(self):
+        self.fillable_width = self.width-2
+        draw_at(self.y, self.x, ctext(self.start_symbol, self.color, self.bg_color)) # draw start
+        draw_at(self.y, self.x + self.width - 1, ctext(self.end_symbol, self.color, self.bg_color)) #draw end
+        draw_at(self.y, self.x + self.filled + 1, ctext(self.unfilled * (self.fillable_width-self.filled), self.unfilled_color)) # draw unfilled space
+        # filled_width ist das problem
+        for progress in self.progress_lst:
+            width = int(self.fillable_width * progress["percentage"])
+
+            draw_at(self.y, self.x + self.filled_width + 1, ctext(self.fill_symbol * width, progress["color"]))
+
+            self.filled_width += width
+
+        self.filled_width = 0
+
+    def set_progress(self, name: str, percentage: float = None, color: str = None):
+        for progress in self.progress_lst:
+            if progress["name"] == name:
+                if percentage is not None:
+                    progress["percentage"] = percentage
+                if color is not None:
+                    progress["color"] = color
+                self.draw()
+                return
+            
+
+    def add_progress(self, name:str, percentage:float, color:str):
+        self.progress_lst.append(
+            {
+                "name": name,
+                "percentage": percentage,
+                "color": color
+            }
+        )
+        
+        self.draw()
+    
+            
