@@ -45,10 +45,8 @@ class App:
         self.quit_box._calculate_dimensions()
 
         self.controls_line = HorizontalDivider(os.get_terminal_size().columns - 2)
-        #self.add_element(self.controls_line)
-
         self.controls = Label("[ESC] go layer up / quit\t[q] quit\t[,] go left\t[.] go right\t[ENTER] select", x=2, y=os.get_terminal_size().columns - 1)
-        #self.add_element(self.controls)
+        self.show_controls = False
 
 
     def add_element(self, element: object):
@@ -168,7 +166,7 @@ class App:
 
         elif self.grid_layout == "relative":
             t_width = os.get_terminal_size().columns
-            t_height = os.get_terminal_size().lines
+            t_height = os.get_terminal_size().lines - 2 if self.show_controls else os.get_terminal_size().lines
             rows = len(self.grid) - 1
             columns = len(self.grid[0]) - 1
 
@@ -202,17 +200,20 @@ class App:
                 self.grid[-1][col][2] = span - 1
 
             for element in self.elements:
-                pos_col, pos_row = self._find_element_in_grid(element)
-                if hasattr(element, "set_size"):
-                    element.set_size(
-                        width=self.grid[-1][pos_col][2],
-                        height=self.grid[pos_row][-1][2],
-                    )
-                else:
-                    element.width = self.grid[-1][pos_col][2]
-                    element.height = self.grid[pos_row][-1][2]
-                element.x = self.grid[-1][pos_col][1]
-                element.y = self.grid[pos_row][-1][1]
+                try:
+                    pos_col, pos_row = self._find_element_in_grid(element)
+                    if hasattr(element, "set_size"):
+                        element.set_size(
+                            width=self.grid[-1][pos_col][2],
+                            height=self.grid[pos_row][-1][2],
+                        )
+                    else:
+                        element.width = self.grid[-1][pos_col][2]
+                        element.height = self.grid[pos_row][-1][2]
+                    element.x = self.grid[-1][pos_col][1]
+                    element.y = self.grid[pos_row][-1][1]
+                except TypeError as e:
+                    continue
             
     def _find_element_in_grid(self, element):
         for r_idx, row_lst in enumerate(self.grid):
@@ -222,7 +223,7 @@ class App:
         return None
 
 
-    def run(self, clearscreen=True):
+    def run(self, clearscreen=True, controls=False):
 
         is_unix = False
         try:
@@ -243,6 +244,11 @@ class App:
                 selectable_elements[self.focused_element].on_focus()
 
             old_size = []
+
+            if controls:
+                self.show_controls = True
+                self.add_element(self.controls_line)
+                self.add_element(self.controls)
 
             while self.running:
 

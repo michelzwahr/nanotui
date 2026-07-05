@@ -7,7 +7,7 @@ from .colors import (
     BG_BRIGHT_BLUE, BG_BRIGHT_CYAN, BG_BRIGHT_GREEN, BG_BRIGHT_MAGENTA, BG_BRIGHT_RED, BG_BRIGHT_WHITE, BG_BRIGHT_YELLOW
 )
 from .screen import clear_screen, move_cursor, draw_at, hide_cursor, show_cursor
-from .elements import ( LoadingBar, Label, Spinner, LogBox, Selection,
+from .elements import ( LoadingBar, Label, Spinner, LogBox, Selection, ProgressBar,
                        Option, SelectBox, Frame, HorizontalDivider, VerticalDivider, RectArea, Button
                        )
 from .app import App
