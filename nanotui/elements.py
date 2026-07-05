@@ -195,8 +195,6 @@ class Label(Element):
 
     def draw(self):
         text = self.output
-        #if self.width > 0:
-        #    text = text[:self.width].ljust(self.width)
         draw_at(self.global_y(), self.global_x(), ctext(text, self.color, self.bg_color, self.style))
         
 
@@ -292,24 +290,19 @@ class Button(Element):
 
     def draw(self):
         text = self.text
-        #if self.width > 0:
-        #    text = text[:self.width].ljust(self.width)
         draw_at(self.global_y(), self.global_x(), ctext(text=text, color=self.color, bg_color=self.bg_color))
     
     def on_focus(self):
         super().on_focus()
-        #text = self.text[:self.width].ljust(self.width)
         draw_at(self.global_y(), self.global_x(), ctext(text=self.text, color=self.color, bg_color=self.bg_color, style=REVERSE))
 
     def on_blur(self):
         super().on_blur()
-        #text = self.text[:self.width].ljust(self.width)
         draw_at(self.global_y(), self.global_x(), ctext(text=self.text, color=self.color, bg_color=self.bg_color, style=RESET))
     
     def select(self):
         if self.on_select:
             self.on_select()
-        #self.is_focused = False
 
         
 class Selection(Element):
@@ -418,16 +411,13 @@ class Option(Element):
     
     def on_blur(self):
         self.is_focused = False
-        #text = self.text[:self.width].ljust(self.width)
         draw_at(self.global_y(), self.global_x(), ctext(self.text, self.color, self.bg_color, RESET))
 
     def on_focus(self):
         self.is_focused = True
-        #text = self.text[:self.width].ljust(self.width)
         draw_at(self.global_y(), self.global_x(), ctext(self.text, self.color, self.bg_color, REVERSE))
 
     def draw(self):
-        #text = self.text[:self.width].ljust(self.width)
         draw_at(self.global_y(), self.global_x(), ctext(self.text, self.color, self.bg_color))
 
 
@@ -525,7 +515,6 @@ class SelectBox(Element):
         if not self.set_y:
             self.y = (os.get_terminal_size().lines - 7) // 2
 
-        #self.length = self.width + 1
         
     
     def change_highlight(self, direction):
@@ -588,7 +577,6 @@ class Frame(Element):
         self.style = style
 
         self._calculate_dimensions(width=width, height=height)
-        #self.draw()
 
     def _child_width(self, child):
         return getattr(child, "width", getattr(child, "length", 0))
@@ -732,7 +720,7 @@ class ProgressBar(Element):
         draw_at(self.y, self.x, ctext(self.start_symbol, self.color, self.bg_color)) # draw start
         draw_at(self.y, self.x + self.width - 1, ctext(self.end_symbol, self.color, self.bg_color)) #draw end
         draw_at(self.y, self.x + self.filled + 1, ctext(self.unfilled * (self.fillable_width-self.filled), self.unfilled_color)) # draw unfilled space
-        # filled_width ist das problem
+
         for progress in self.progress_lst:
             width = int(self.fillable_width * progress["percentage"])
 
