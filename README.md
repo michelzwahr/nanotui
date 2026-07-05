@@ -21,7 +21,7 @@ A lightweight, dependency-free Python library for building terminal user interfa
 ### Option 1: Clone and install locally
 
 ```bash
-git clone https://github.com/<your-username>/nanotui.git
+git clone https://github.com/michelzwahr/nanotui.git
 cd nanotui
 pip install .
 ```
@@ -29,7 +29,7 @@ pip install .
 ### Option 2: Install directly from GitHub
 
 ```bash
-pip install git+https://github.com/<your-username>/nanotui.git
+pip install git+https://github.com/michelzwahr/nanotui.git
 ```
 
 ## Quick Start
