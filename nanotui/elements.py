@@ -13,6 +13,9 @@ class Element:
         self.children = []
         self._explicit_width = width is not None
         self._explicit_height = height is not None
+        self.fill_grid = False
+        self.offset_x = 0
+        self.offset_y = 0
         if width is not None:
             self.width = width
         else:
@@ -129,6 +132,8 @@ class LoadingBar(Element):
         self.style = style
         self.interval = interval
         self.label = label
+        self.offset_x = x
+        self.offset_y = y
         if width is None:
             self.width = steps
         if height is None:
@@ -185,6 +190,8 @@ class Label(Element):
         self.style = style
         self.output = self.text
         super().__init__(self.x, self.y, parent=parent, width=width, height=height)
+        self.offset_x = x
+        self.offset_y = y
 
     def draw(self):
         text = self.output
@@ -220,6 +227,8 @@ class Spinner(Element):
             self.width = 1
         self.interval = interval
         self.length = length
+        self.offset_y = y
+        self.offset_x = x
 
     def next(self):
         symbol = self.phases[self.current_phase % 4]
@@ -239,6 +248,7 @@ class LogBox(Element):
     def __init__(self, x, y, height=None, parent=None, width=None):
         super().__init__(x, y, parent=parent, width=width, height=height)
         self.text = []
+        self.fill_grid = True
     
     def add_entry(self, entry):
         self.text.append(entry)
@@ -268,17 +278,17 @@ class LogBox(Element):
         self.log()
 
 class Button(Element):
-    def __init__(self, x, y, text, on_select=None, color=WHITE, bg_color="", parent=None, width=None, height=None):
-        super().__init__(x, y, parent=parent, width=width, height=height)
+    def __init__(self, x, y, text, on_select=None, color=WHITE, bg_color="", parent=None):
+        super().__init__(x, y, parent=parent)
         self.is_selected = False
         self.text = text
         self.color = color
         self.bg_color = bg_color
-        if width is None:
-            self.width = len(self.text)
-        if height is None:
-            self.height = 1
+        self.width = len(self.text)
+        self.height = 1
         self.on_select = on_select
+        self.offset_x = x
+        self.offset_y = y
 
     def draw(self):
         text = self.text
@@ -310,6 +320,8 @@ class Selection(Element):
         self.highlighted_option = 0
         self.on_select = on_select
         self.fill_width = True
+        self.offset_y = y
+        self.offset_x = x
 
     def layout(self):
         if self.parent is None or not self.fill_width or self._explicit_width:
@@ -431,6 +443,7 @@ class SelectBox(Element):
         self.highlighted_option = 0
         self.selected = False
         self.on_select = on_select
+        self.fill_grid = True
 
         if height is None:
             self.height = 7
@@ -556,6 +569,7 @@ class Frame(Element):
         self.element = element
         self._explicit_width = width is not None
         self._explicit_height = height is not None
+        self.fill_grid = True
         if x is not None and y is not None:
             self.x = x
             self.y = y
@@ -631,12 +645,15 @@ class Frame(Element):
         self.draw_children()
 
 class HorizontalDivider(Element):
-    def __init__(self, y, symbol="─", color=WHITE, bg_color="", style="", parent=None, width=None, height=None):
+    def __init__(self, y, x=0, symbol="─", color=WHITE, bg_color="", style="", parent=None, width=None, height=None):
         super().__init__(1, y, parent=parent, width=width, height=height)
         self.symbol = symbol
         self.color = color
         self.bg_color = bg_color
         self.style = style
+        self.offset_y = y
+        self.offset_x = x
+
         if width is None:
             self.width = os.get_terminal_size().columns
         if height is None:
@@ -645,16 +662,19 @@ class HorizontalDivider(Element):
     def draw(self):
         width = self.width if self._explicit_width else os.get_terminal_size().columns
         for i in range(width):
-            draw_at(self.global_y(), i, ctext(self.symbol, self.color, self.bg_color, self.style))
+            draw_at(self.y, self.x + i, ctext(self.symbol, self.color, self.bg_color, self.style))
         self.width = width
 
 class VerticalDivider(Element):
-    def __init__(self, x, symbol="│", color=WHITE, bg_color="", style="", parent=None, width=None, height=None):
+    def __init__(self, x, y=0, symbol="│", color=WHITE, bg_color="", style="", parent=None, width=None, height=None):
         super().__init__(x, 1, parent=parent, width=width, height=height)
         self.symbol = symbol
         self.color = color
         self.bg_color = bg_color
         self.style = style
+        self.offset_x = x
+        self.offset_y = y
+        
         if height is None:
             self.height = os.get_terminal_size().lines
         if width is None:
@@ -663,13 +683,13 @@ class VerticalDivider(Element):
     def draw(self):
         height = self.height if self._explicit_height else os.get_terminal_size().lines
         for i in range(height):
-            draw_at(i, self.global_x(), ctext(self.symbol, self.color, self.bg_color, self.style))
+            draw_at(self.y+i, self.x, ctext(self.symbol, self.color, self.bg_color, self.style))
         self.height = height
 
 class RectArea(Frame):
     def __init__(self, element=None, x=None, y=None, height=None, width=None, color=WHITE, bg_color="", style="", parent=None):
         super().__init__(element=element, x=x, y=y, height=height, width=width, color=color, bg_color=bg_color, style=style, parent=parent)
-
+        self.fill_grid = True
     def draw(self):
         self._calculate_dimensions()
         tl, tr, bl, br = "┌", "┐", "└", "┘"
@@ -704,6 +724,8 @@ class ProgressBar(Element):
         self.fillable_width = self.width-2
         self.filled_width = 0
         self.fill_symbol = fill_symbol
+        self.offset_y = y
+        self.offset_x = x
         
     def draw(self):
         self.fillable_width = self.width-2

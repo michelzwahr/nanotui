@@ -127,7 +127,7 @@ class App:
             element.draw()
 
     def create_grid(self, rows, columns):
-        self.grid = [[None for _ in range(columns)] + [[1, 0, 0]] for _ in range(rows)]
+        self.grid = [[[] for _ in range(columns)] + [[1, 0, 0]] for _ in range(rows)]
         self.grid.append([[1, 0, 0] for _ in range(columns)])
 
 
@@ -141,30 +141,22 @@ class App:
 
         for element, position in grid_mapping.items():
             row, col = position
-            self.grid[row-1][col-1] = element
-            print(self.grid)
-            if element.width > self.grid[-1][col-1][2]:
-                self.grid[-1][col-1][2] = element.width
-            if element.height > self.grid[row-1][-1][2]:
-                self.grid[row-1][-1][2] = element.height
-
+            if element.fill_grid is True:
+                if not self.grid[row-1][col-1]:
+                    self.grid[row-1][col-1] = element
+                else:
+                    clear_screen()
+                    raise ValueError(f"Grid ({row-1}, {col-1}) is already been used")
+            else:
+                self.grid[row-1][col-1].append(element)
+                
             if element not in self.elements:
                 self.add_element(element)
 
         self.update_grid()
 
     def update_grid(self):
-        if self.grid_layout == "absolute":
-            sum_height = 1
-            for row in range(len(self.grid)) - 1:
-                self.grid[row][-1][1] = sum_height
-                sum_height += self.grid[row][-1][2]
-            sum_width = 1
-            for col in range(len(self.grid[0]) ) - 1:
-                self.grid[-1][col][1] = sum_width
-                sum_width += self.grid[-1][col][2]
-
-        elif self.grid_layout == "relative":
+        if self.grid_layout == "relative":
             t_width = os.get_terminal_size().columns
             t_height = os.get_terminal_size().lines - 2 if self.show_controls else os.get_terminal_size().lines
             rows = len(self.grid) - 1
@@ -201,25 +193,35 @@ class App:
 
             for element in self.elements:
                 try:
-                    pos_col, pos_row = self._find_element_in_grid(element)
-                    if hasattr(element, "set_size"):
-                        element.set_size(
-                            width=self.grid[-1][pos_col][2],
-                            height=self.grid[pos_row][-1][2],
-                        )
+                    pos_col, pos_row, pos_el = self._find_element_in_grid(element)
+                    if element.fill_grid is True:
+                        if hasattr(element, "set_size"):
+                            element.set_size(
+                                width=self.grid[-1][pos_col][2],
+                                height=self.grid[pos_row][-1][2],
+                            )
+                        else:
+                            element.width = self.grid[-1][pos_col][2]
+                            element.height = self.grid[pos_row][-1][2]
+                        element.x = self.grid[-1][pos_col][1]
+                        element.y = self.grid[pos_row][-1][1]
                     else:
-                        element.width = self.grid[-1][pos_col][2]
-                        element.height = self.grid[pos_row][-1][2]
-                    element.x = self.grid[-1][pos_col][1]
-                    element.y = self.grid[pos_row][-1][1]
+                        element.x = self.grid[-1][pos_col][1] + element.offset_x
+                        element.y = self.grid[pos_row][-1][1] + element.offset_y
+
                 except TypeError as e:
                     continue
             
     def _find_element_in_grid(self, element):
         for r_idx, row_lst in enumerate(self.grid):
             for c_idx, item in enumerate(row_lst):
-                if item is element:
-                    return r_idx, c_idx  # REIHE zuerst, dann SPALTE (Standard-Konvention)
+                if not isinstance(item, list):
+                    if item is element:
+                        return r_idx, c_idx, None
+                else:
+                    for l_idx, el in enumerate(item):
+                        if el is element:
+                            return r_idx, c_idx, l_idx
         return None
 
 

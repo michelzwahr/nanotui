@@ -10,6 +10,14 @@ def main():
     logbox = LogBox(1, 1)
     box_frame = RectArea(element=logbox, color=GREEN)
 
+    boxsecelct = SelectBox("Auswahl")
+    boxsecelct.add_options(
+        Option("Option 1", 1),
+        Option("Option 2", 2)
+    )
+
+    divider = HorizontalDivider(0, 2)
+    button = Button(5, 5, "Hallo")
 
     top_left = RectArea(color=RED)
 
@@ -35,7 +43,9 @@ def main():
         {
             top_left: (1, 1),
             frame: (1, 2),
-            box_frame: (2, 2)
+            box_frame: (2, 2),
+            divider: (2, 1),
+            button: (2, 1)
         }
     )
     
