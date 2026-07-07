@@ -47,6 +47,7 @@ class App:
         self.controls_line = HorizontalDivider(os.get_terminal_size().columns - 2)
         self.controls = Label("[ESC] go layer up / quit\t[q] quit\t[,] go left\t[.] go right\t[ENTER] select", x=2, y=os.get_terminal_size().columns - 1)
         self.show_controls = False
+        self.test = None
 
 
     def add_element(self, element: object):
@@ -137,18 +138,40 @@ class App:
     def config_column(self, column, weight):
         self.grid[-1][column-1][0] = weight
 
-    def add_to_grid(self, grid_mapping: dict):
+    def add_to_grid(self, grid_mapping: list):
+        # group all positions by element with a dict
+        element_positions = {}
+        for element, position in grid_mapping:
+            if element not in element_positions:
+                element_positions[element] = []
+            element_positions[element].append(position)
 
-        for element, position in grid_mapping.items():
-            row, col = position
-            if element.fill_grid is True:
-                if not self.grid[row-1][col-1]:
-                    self.grid[row-1][col-1] = element
-                else:
-                    clear_screen()
-                    raise ValueError(f"Grid ({row-1}, {col-1}) is already been used")
-            else:
-                self.grid[row-1][col-1].append(element)
+        # go through every element in the element group
+        for element, positions in element_positions.items():
+            # collect all rows and columns
+            rows = [pos[0] for pos in positions]
+            cols = [pos[1] for pos in positions]
+            
+            # calculate the min and max area
+            min_row, max_row = min(rows), max(rows)
+            min_col, max_col = min(cols), max(cols)
+            
+            # take all cells in this area
+            for row in range(min_row, max_row + 1):
+                for col in range(min_col, max_col + 1):
+                    
+                    if element.fill_grid is True:
+                        # cell is empty or is already been used by this element
+                        if not self.grid[row-1][col-1] or self.grid[row-1][col-1] == element:
+                            self.grid[row-1][col-1] = element
+                        else:
+                            # cell is used by an other element
+                            clear_screen()
+                            raise ValueError(f"Grid ({row-1}, {col-1}) is already been used")
+                    else:
+                        # multiple elements in one cell
+                        if element not in self.grid[row-1][col-1]:
+                            self.grid[row-1][col-1].append(element)
                 
             if element not in self.elements:
                 self.add_element(element)
@@ -193,32 +216,39 @@ class App:
 
             for i, element in enumerate(self.elements):
                 try:
-                    #pos_col, pos_row, pos_el = self._find_element_in_grid(element)
                     pos_lst = self._find_element_in_grid(element)
                     if not pos_lst:
                         continue
-                    #if i == 2:
-                        #raise Exception(pos_lst)
+                    
+                    # Definiere direkt die erste Zeile und Spalte für später
+                    first_row, first_col = pos_lst[0]
+
                     if element.fill_grid is True:
-                        element.width = 0
-                        element.height = 0
+                        width = 0
+                        height = 0
                         used_cols = []
                         used_rows = []
-                        for pos_col, pos_row in pos_lst:
+                        
+                        # KORREKTUR 1: Zuerst pos_row, dann pos_col entpacken!
+                        for pos_row, pos_col in pos_lst:
                             if pos_col not in used_cols:
-                                element.width += self.grid[-1][pos_col][2]
+                                width += self.grid[-1][pos_col][2]
+                                used_cols.append(pos_col)
                             if pos_row not in used_rows:
-                                element.height += self.grid[pos_row][-1][2]
-                            used_cols.append(pos_col)
-                            used_rows.append(pos_row)
-                        # sets x and y to the top left corner of the cell (index 0 = first)
-                        element.x = self.grid[-1][pos_lst[0][0]][1]
-                        element.y = self.grid[pos_lst[0][1]][-1][1]
+                                height += self.grid[pos_row][-1][2]
+                                used_rows.append(pos_row)
+                                
+                        if hasattr(element, "set_size"):
+                            element.set_size(width=width, height=height)
+                        
+                        # KORREKTUR 2: x nutzt die Spalte (col), y nutzt die Zeile (row)
+                        element.x = self.grid[-1][first_col][1]
+                        element.y = self.grid[first_row][-1][1]
+                        self.test = element
                     else:
-                        element.x = self.grid[-1][pos_lst[0][0]][1] + element.offset_x
-                        element.y = self.grid[pos_lst[0][1]][-1][1] + element.offset_y
-
-                    #raise Exception(element, element.width)
+                        # KORREKTUR 3: Auch hier für den Offset-Fall korrigieren
+                        element.x = self.grid[-1][first_col][1] + element.offset_x
+                        element.y = self.grid[first_row][-1][1] + element.offset_y
 
                 except TypeError as e:
                     continue
@@ -240,6 +270,8 @@ class App:
 
 
     def run(self, clearscreen=True, controls=False):
+
+        
 
         is_unix = False
         try:
@@ -268,6 +300,8 @@ class App:
 
             while self.running:
 
+                
+
                 for el in self._dynamic_elements():
                     el.update()
 
@@ -275,14 +309,17 @@ class App:
                 self.controls_line.y = current_terminal_size[1] - 2
                 self.controls.y = current_terminal_size[1] - 1
 
+
+
                 if current_terminal_size != old_size:
                     if self.use_grid:
                         self.update_grid()
                     clear_screen()
                     self.draw_all()
+                    #raise Exception(self.test.x, self.test.y, self.test.width, self.test.height)
                 old_size = [os.get_terminal_size().columns, os.get_terminal_size().lines]
 
-                
+
                 key = get_key()
 
                 match(key):
@@ -326,6 +363,8 @@ class App:
                     case "r":
                         clear_screen()
                         self.draw_all()
+                    case "g":
+                        raise Exception(self.test.x, self.test.y, self.test.width, self.test.height)
                     case _:
                         pass
                     

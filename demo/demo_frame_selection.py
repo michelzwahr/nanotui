@@ -5,49 +5,34 @@ from nanotui import *
 def main():
     app = App("Frame Selection Demo", True, "relative")
 
+    def on_select(value):
+        box.add_and_log(f"Button gedrückt: {value}")
 
-    app.create_grid(2, 2)
+    app.create_grid(3, 3)
 
-    logbox = LogBox(30, 15)
-    box_frame = RectArea(color=GREEN)
+    box = LogBox(2, 2)
 
-    boxsecelct = SelectBox("Auswahl")
-    boxsecelct.add_options(
-        Option("Option 1", 1),
-        Option("Option 2", 2)
+    auswahl = Selection(1, 1, on_select=on_select)
+
+    auswahl.add_options(
+        Option("Auswahl1", 1),
+        Option("Auswahl2", 2),
+        Option("Auswahl3", 3)
     )
 
-    divider = HorizontalDivider(0, 2)
-    button = Button(5, 5, "Hallo")
+    frame1 = RectArea(element=box)
+    frame2 = Frame()
+    frame3 = RectArea(element=auswahl)
 
-
-    logbox.add_and_log(f"element box_frame: width: {box_frame.width}, height: {box_frame.height}")
-
-    selection = Selection(1, 1)
-    frame = Frame(x_symbol="~", y_symbol="|", element=selection)
-
-    selection.add_options(
-        Option("Option 1", 1),
-        Option("Option 2", 2),
-        Option("Option 3", 3),
-        Option("Option 4", 4),
-        Option("Option 5", 5),
-        Option("Option 6", 6)
-    )
-
-    app.create_grid(2, 2)
-    app.config_column(2, 3)
-    app.config_row(2, 3)
-    app.add_to_grid(
-        {
-
-            frame: (1, 2),
-            box_frame: (2, 2),
-            divider: (2, 1),
-            button: (2, 1)
-        }
-    )
-    app.add_element(logbox)
+    app.add_to_grid([
+        (frame1, (1, 1)),
+        (frame2, (2, 1)),
+        (frame3, (3, 1)),
+        (frame1, (1, 3)),
+        (frame2, (2, 3)),
+        (frame3, (3, 3))
+    ])
+    
     
     app.run(controls=True)
 
