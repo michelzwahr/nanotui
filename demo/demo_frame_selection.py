@@ -1,5 +1,6 @@
 from nanotui import *
 
+# idea: log every row of app.grid in logbox
 
 def main():
     app = App("Frame Selection Demo", True, "relative")
@@ -7,8 +8,8 @@ def main():
 
     app.create_grid(2, 2)
 
-    logbox = LogBox(1, 1)
-    box_frame = RectArea(element=logbox, color=GREEN)
+    logbox = LogBox(30, 15)
+    box_frame = RectArea(color=GREEN)
 
     boxsecelct = SelectBox("Auswahl")
     boxsecelct.add_options(
@@ -19,12 +20,10 @@ def main():
     divider = HorizontalDivider(0, 2)
     button = Button(5, 5, "Hallo")
 
-    top_left = RectArea(color=RED)
 
-    def on_select(value):
-        logbox.add_and_log(f"Neuer Eintrag: {value}")
+    logbox.add_and_log(f"element box_frame: width: {box_frame.width}, height: {box_frame.height}")
 
-    selection = Selection(1, 1, on_select=on_select)
+    selection = Selection(1, 1)
     frame = Frame(x_symbol="~", y_symbol="|", element=selection)
 
     selection.add_options(
@@ -41,13 +40,14 @@ def main():
     app.config_row(2, 3)
     app.add_to_grid(
         {
-            top_left: (1, 1),
+
             frame: (1, 2),
             box_frame: (2, 2),
             divider: (2, 1),
             button: (2, 1)
         }
     )
+    app.add_element(logbox)
     
     app.run(controls=True)
 

@@ -28,7 +28,7 @@ def get_key():
     return mapping.get(raw_input, raw_input)
 
 class App:
-    def __init__(self, name, use_grid=False, grid_layout="absolute"):
+    def __init__(self, name, use_grid=False, grid_layout="relative"):
         self.elements = []
         self.focused_element = 0
         self.running = True
@@ -191,38 +191,52 @@ class App:
                 self.grid[-1][col][1] = start
                 self.grid[-1][col][2] = span - 1
 
-            for element in self.elements:
+            for i, element in enumerate(self.elements):
                 try:
-                    pos_col, pos_row, pos_el = self._find_element_in_grid(element)
+                    #pos_col, pos_row, pos_el = self._find_element_in_grid(element)
+                    pos_lst = self._find_element_in_grid(element)
+                    if not pos_lst:
+                        continue
+                    #if i == 2:
+                        #raise Exception(pos_lst)
                     if element.fill_grid is True:
-                        if hasattr(element, "set_size"):
-                            element.set_size(
-                                width=self.grid[-1][pos_col][2],
-                                height=self.grid[pos_row][-1][2],
-                            )
-                        else:
-                            element.width = self.grid[-1][pos_col][2]
-                            element.height = self.grid[pos_row][-1][2]
-                        element.x = self.grid[-1][pos_col][1]
-                        element.y = self.grid[pos_row][-1][1]
+                        element.width = 0
+                        element.height = 0
+                        used_cols = []
+                        used_rows = []
+                        for pos_col, pos_row in pos_lst:
+                            if pos_col not in used_cols:
+                                element.width += self.grid[-1][pos_col][2]
+                            if pos_row not in used_rows:
+                                element.height += self.grid[pos_row][-1][2]
+                            used_cols.append(pos_col)
+                            used_rows.append(pos_row)
+                        # sets x and y to the top left corner of the cell (index 0 = first)
+                        element.x = self.grid[-1][pos_lst[0][0]][1]
+                        element.y = self.grid[pos_lst[0][1]][-1][1]
                     else:
-                        element.x = self.grid[-1][pos_col][1] + element.offset_x
-                        element.y = self.grid[pos_row][-1][1] + element.offset_y
+                        element.x = self.grid[-1][pos_lst[0][0]][1] + element.offset_x
+                        element.y = self.grid[pos_lst[0][1]][-1][1] + element.offset_y
+
+                    #raise Exception(element, element.width)
 
                 except TypeError as e:
                     continue
             
     def _find_element_in_grid(self, element):
+        position = []
         for r_idx, row_lst in enumerate(self.grid):
             for c_idx, item in enumerate(row_lst):
                 if not isinstance(item, list):
-                    if item is element:
-                        return r_idx, c_idx, None
+                    # Geändert: '==' statt 'is' und zusätzliche Klammern bei append
+                    if item == element:
+                        position.append((r_idx, c_idx))
                 else:
-                    for l_idx, el in enumerate(item):
-                        if el is element:
-                            return r_idx, c_idx, l_idx
-        return None
+                    for el in item:
+                        # Geändert: '==' statt 'is' und zusätzliche Klammern bei append
+                        if el == element:
+                            position.append((r_idx, c_idx))
+        return position
 
 
     def run(self, clearscreen=True, controls=False):
