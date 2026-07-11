@@ -14,7 +14,14 @@ def main():
     bottom_frame = RectArea(color=DEFAULT)
 
     info = LogBox(1, 1, parent=log_frame)
-    
+
+    def title_pos(title):
+        title.x = title.parent.width // 2 - title.width
+        title.y = title.parent.height // 2 - title.height
+
+    title = Label("Demo", parent=top_frame, color=BLUE, style=BOLD)
+    title.on_update(title_pos)
+
     def selection(selected_value):
         if selected_value == 4:
             info.add_and_log("ERROR!", bg_color=RED)

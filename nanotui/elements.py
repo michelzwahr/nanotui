@@ -17,6 +17,7 @@ class Element:
         self.offset_x = 0
         self.offset_y = 0
         self.bg_color = bg_color
+        self._update_callback = None
         if width is not None:
             self.width = width
         else:
@@ -127,6 +128,14 @@ class Element:
         if self.parent is not None and hasattr(self.parent, "_calculate_dimensions"):
             self.parent._calculate_dimensions()
             self.parent.request_layout()
+    
+    def on_update(self, callback):
+        self._update_callback = callback
+        return self
+    
+    def update(self):
+        if self._update_callback:
+            self._update_callback(self)
 
 class LoadingBar(Element):
     def __init__(self, x, y, steps=5, symbol=".", interval=0.4, color=WHITE, bg_color="", style="", label=None, parent=None, width=None, height=None):
