@@ -363,8 +363,6 @@ class App:
                     case "r":
                         clear_screen()
                         self.draw_all()
-                    case "g":
-                        raise Exception(self.test.x, self.test.y, self.test.width, self.test.height)
                     case _:
                         pass
                     

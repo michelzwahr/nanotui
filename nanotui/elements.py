@@ -6,7 +6,7 @@ import os
 
 
 class Element:
-    def __init__(self, x=0, y=0, parent=None, width=None, height=None):
+    def __init__(self, x=0, y=0, parent=None, width=None, height=None, bg_color=""):
         self.x = x if x is not None else 0
         self.y = y if y is not None else 0
         self.parent = None
@@ -16,6 +16,7 @@ class Element:
         self.fill_grid = False
         self.offset_x = 0
         self.offset_y = 0
+        self.bg_color = bg_color
         if width is not None:
             self.width = width
         else:
@@ -28,6 +29,11 @@ class Element:
 
         if parent is not None:
             parent.add_child(self)
+            if hasattr(parent, "bg_color") and hasattr(self, "bg_color"):
+                if self.bg_color == "":
+                    self.bg_color = parent.bg_color
+        
+
 
     def add_child(self, child):
         if child.parent is self:
@@ -124,7 +130,7 @@ class Element:
 
 class LoadingBar(Element):
     def __init__(self, x, y, steps=5, symbol=".", interval=0.4, color=WHITE, bg_color="", style="", label=None, parent=None, width=None, height=None):
-        super().__init__(x, y, parent=parent, width=width, height=height)
+        super().__init__(x, y, parent=parent, width=width, height=height, bg_color=bg_color)
         self.steps = steps
         self.symbol = symbol
         self.color = color
@@ -161,7 +167,6 @@ class LoadingBar(Element):
     def draw(self):
         self.load()
 
-
 class Label(Element):
     def __init__(self, text, element=None, x=None, y=None, color=WHITE, bg_color="", style="", parent=None, width=None, height=None):
         self.text = text
@@ -189,7 +194,7 @@ class Label(Element):
         self.bg_color = bg_color
         self.style = style
         self.output = self.text
-        super().__init__(self.x, self.y, parent=parent, width=width, height=height)
+        super().__init__(self.x, self.y, parent=parent, width=width, height=height, bg_color=bg_color)
         self.offset_x = x
         self.offset_y = y
 
@@ -215,8 +220,8 @@ class Label(Element):
         self.draw()
 
 class Spinner(Element):
-    def __init__(self, x, y, text="Loading", color=WHITE, interval=0.1, length=5, parent=None, width=None, height=None):
-        super().__init__(x, y, parent=parent, width=width, height=height)
+    def __init__(self, x, y, text="Loading", color=WHITE, bg_color="", interval=0.1, length=5, parent=None, width=None, height=None):
+        super().__init__(x, y, parent=parent, width=width, height=height, bg_color=bg_color)
         self.text = text
         self.color = color
         self.phases = ["|", "/", "-", "\\"]
@@ -230,7 +235,7 @@ class Spinner(Element):
 
     def next(self):
         symbol = self.phases[self.current_phase % 4]
-        output = f"{ctext(symbol, self.color)} {self.text}"
+        output = f"{ctext(symbol, self.color, self.bg_color)} {self.text}"
         draw_at(self.global_y(), self.global_x(), output)
         self.current_phase += 1
 
@@ -248,8 +253,8 @@ class LogBox(Element):
         self.text = []
         self.fill_grid = True
     
-    def add_entry(self, entry):
-        self.text.append(entry)
+    def add_entry(self, entry, color=DEFAULT, bg_color=""):
+        self.text.append((entry, color, bg_color))
         max_entries = self.height
         if not self._explicit_height:
             max_entries = self.available_height()
@@ -259,17 +264,21 @@ class LogBox(Element):
             self.width = len(entry)
 
     def log(self):
+        if self.parent and hasattr(self.parent, "bg_color"):
+            bg = self.parent.bg_color
         visible_height = self.height
         if not self._explicit_height:
             visible_height = self.available_height()
         elif self.parent is not None:
             visible_height = min(visible_height, self.available_height())
 
-        for i, element in enumerate(self.text[:visible_height]):
-            draw_at(self.global_y() + i, self.global_x(), element)
+        for i, (element, color, bg_color) in enumerate(self.text[:visible_height]):
+            if bg_color != "":
+                bg = bg_color
+            draw_at(self.global_y() + i, self.global_x(), ctext(element, color, bg))
     
-    def add_and_log(self, entry):
-        self.add_entry(entry)
+    def add_and_log(self, entry, color=DEFAULT, bg_color=""):
+        self.add_entry(entry, color, bg_color)
         self.log()
 
     def draw(self):
@@ -277,11 +286,10 @@ class LogBox(Element):
 
 class Button(Element):
     def __init__(self, x, y, text, on_select=None, color=WHITE, bg_color="", parent=None):
-        super().__init__(x, y, parent=parent)
+        super().__init__(x, y, parent=parent, bg_color=bg_color)
         self.is_selected = False
         self.text = text
         self.color = color
-        self.bg_color = bg_color
         self.width = len(self.text)
         self.height = 1
         self.on_select = on_select
@@ -303,8 +311,7 @@ class Button(Element):
     def select(self):
         if self.on_select:
             self.on_select()
-
-        
+     
 class Selection(Element):
     def __init__(self, x, y, on_select=None, parent=None, width=None, height=None):
         super().__init__(x, y, parent=parent, width=width, height=height)
@@ -329,6 +336,8 @@ class Selection(Element):
             self.width = len(option.text)
         if not self._explicit_height:
             self.height = len(self.options)
+        if option.bg_color == "":
+            option.bg_color = self.bg_color
         self.request_layout()
         self.draw()
 
@@ -395,8 +404,7 @@ class Selection(Element):
     def enter(self):
         if self.on_select:
             self.on_select(self.get_value())
-
-    
+  
 class Option(Element):
     def __init__(self, text, value, color=WHITE, bg_color="", parent=None, width=None, height=None):
         super().__init__(0, 0, parent=parent, width=width, height=height)
@@ -419,7 +427,6 @@ class Option(Element):
 
     def draw(self):
         draw_at(self.global_y(), self.global_x(), ctext(self.text, self.color, self.bg_color))
-
 
 class SelectBox(Element):
     def __init__(self, text, x=None, y=None, frame_symbol="#", color=WHITE, bg_color="", style="", on_select=None, parent=None, width=None, height=None):
@@ -634,10 +641,9 @@ class Frame(Element):
 
 class HorizontalDivider(Element):
     def __init__(self, y, x=0, symbol="─", color=WHITE, bg_color="", style="", parent=None, width=None, height=None):
-        super().__init__(1, y, parent=parent, width=width, height=height)
+        super().__init__(1, y, parent=parent, width=width, height=height, bg_color=bg_color)
         self.symbol = symbol
         self.color = color
-        self.bg_color = bg_color
         self.style = style
         self.offset_y = y
         self.offset_x = x
@@ -655,10 +661,9 @@ class HorizontalDivider(Element):
 
 class VerticalDivider(Element):
     def __init__(self, x, y=0, symbol="│", color=WHITE, bg_color="", style="", parent=None, width=None, height=None):
-        super().__init__(x, 1, parent=parent, width=width, height=height)
+        super().__init__(x, 1, parent=parent, width=width, height=height, bg_color=bg_color)
         self.symbol = symbol
         self.color = color
-        self.bg_color = bg_color
         self.style = style
         self.offset_x = x
         self.offset_y = y
@@ -699,12 +704,11 @@ class RectArea(Frame):
         self.draw_children()
 
 class ProgressBar(Element):
-    def __init__(self, x=0, y=0, end_symbols=["[", "]"], fill_symbol="█", unfilled_symbol="░", unfilled_color=DEFAULT, color=DEFAULT, bg_color=DEFAULT, parent=None, width=None):
-        super().__init__(x, y, parent, width, height=1)
+    def __init__(self, x=0, y=0, end_symbols=["[", "]"], fill_symbol="█", unfilled_symbol="░", unfilled_color=DEFAULT, color=DEFAULT, bg_color="", parent=None, width=None):
+        super().__init__(x, y, parent, width, height=1, bg_color=bg_color)
         self.start_symbol = end_symbols[0]
         self.end_symbol = end_symbols[1]
         self.color = color
-        self.bg_color = bg_color
         self.filled = 0
         self.unfilled = unfilled_symbol
         self.unfilled_color = unfilled_color
