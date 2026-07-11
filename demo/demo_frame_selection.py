@@ -1,10 +1,5 @@
 from nanotui import *
 
-# idea: log every row of app.grid in logbox
-# spinner testen
-# button testen
-# progressbar, devider
-
 def main():
     app = App("Demo", True, "relative")
 

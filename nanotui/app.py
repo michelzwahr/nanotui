@@ -181,7 +181,7 @@ class App:
     def update_grid(self):
         if self.grid_layout == "relative":
             t_width = os.get_terminal_size().columns
-            t_height = os.get_terminal_size().lines - 2 if self.show_controls else os.get_terminal_size().lines
+            t_height = os.get_terminal_size().lines - 3 if self.show_controls else os.get_terminal_size().lines
             rows = len(self.grid) - 1
             columns = len(self.grid[0]) - 1
 
@@ -232,10 +232,10 @@ class App:
                         # KORREKTUR 1: Zuerst pos_row, dann pos_col entpacken!
                         for pos_row, pos_col in pos_lst:
                             if pos_col not in used_cols:
-                                width += self.grid[-1][pos_col][2]
+                                width += self.grid[-1][pos_col][2] + 1
                                 used_cols.append(pos_col)
                             if pos_row not in used_rows:
-                                height += self.grid[pos_row][-1][2]
+                                height += self.grid[pos_row][-1][2] + 1
                                 used_rows.append(pos_row)
                                 
                         if hasattr(element, "set_size"):
