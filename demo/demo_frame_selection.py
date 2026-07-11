@@ -12,10 +12,11 @@ def main():
 
     def title_pos(title):
         title.x = title.parent.width // 2 - title.width
-        title.y = title.parent.height // 2 - title.height
+        title.y = title.parent.height // 2 - 1 
 
     title = Label("Demo", parent=top_frame, color=BLUE, style=BOLD)
     title.on_update(title_pos)
+
 
     def selection(selected_value):
         if selected_value == 4:
@@ -38,8 +39,10 @@ def main():
     def button_select():
         info.add_and_log("Button does SELECT")
 
-    action_button = Button(30, 3, "Action", parent=select_frame, color=DEFAULT, bg_color=BG_WHITE, on_select=button_action)
-    select_button = Button(40, 3, "Select", parent=select_frame, color=DEFAULT, bg_color=BG_WHITE, on_select=button_select)
+    action_button = Button(30, 3, "Action", parent=select_frame, color=DEFAULT, bg_color=BG_BRIGHT_BLUE, on_select=button_action)
+    select_button = Button(40, 3, "Select", parent=select_frame, color=DEFAULT, bg_color=BG_BLUE, on_select=button_select)
+
+    another_button = Button(1, 1, "Knopf", parent=bottom_frame)
 
     app.create_grid(3, 3)
     app.add_to_grid([

@@ -5,16 +5,17 @@ from .elements import SelectBox, Option, HorizontalDivider, Label
 import tty, termios, select
 
 def get_key():
-    rlist, _, _ = select.select([sys.stdin], [], [], 0.0)
+    fd = sys.stdin.fileno()
+    rlist, _, _ = select.select([fd], [], [], 0.0)
     if not rlist:
         return None
-
-    raw_input = sys.stdin.read(1)
-    
+ 
+    raw_input = os.read(fd, 1).decode(errors="ignore")
+ 
     if raw_input == '\x1b':
-        rlist_seq, _, _ = select.select([sys.stdin], [], [], 0.001)
+        rlist_seq, _, _ = select.select([fd], [], [], 0.005)
         if rlist_seq:
-            raw_input += sys.stdin.read(2)
+            raw_input += os.read(fd, 2).decode(errors="ignore")
         else:
             return 'ESC'
     mapping = {
@@ -45,9 +46,12 @@ class App:
         self.quit_box._calculate_dimensions()
 
         self.controls_line = HorizontalDivider(os.get_terminal_size().columns - 2)
-        self.controls = Label("[ESC] go layer up / quit\t[q] quit\t[,] go left\t[.] go right\t[ENTER] select", x=2, y=os.get_terminal_size().columns - 1)
+        self.controls = Label("[ESC] go layer up / quit\t[q] quit\t[<-/->] move / cycle\t[^/v] move row\t[ENTER] select", x=2, y=os.get_terminal_size().columns - 1)
         self.show_controls = False
         self.test = None
+        self.selected_row = 0
+        self.selected_col = 0
+        self.selected_inner = 0
 
 
     def add_element(self, element: object):
@@ -111,6 +115,14 @@ class App:
         self.remove_element(self.quit_box)
         self.layer = 0
         self.draw_all()
+
+        if self.use_grid and getattr(self, "grid", None):
+            selectables = self._selectables_in_cell(self.selected_row, self.selected_col)
+            if selectables:
+                self.selected_inner = min(self.selected_inner, len(selectables) - 1)
+                self._focus_grid_element(selectables[self.selected_inner])
+                return
+
         self.focused_element = 0
         selectable_elements = self._selectable_elements()
         if selectable_elements:
@@ -268,11 +280,98 @@ class App:
                             position.append((r_idx, c_idx))
         return position
 
+    def _grid_dimensions(self):
+        # last row/column holds the row/column weight config, so exclude it
+        rows = len(self.grid) - 1
+        columns = len(self.grid[0]) - 1
+        return rows, columns
+
+    def _selectables_in_cell(self, row, col):
+        """Returns every selectable element sitting in a given grid cell (0-based),
+        resolving into wrapper elements like Frame/RectArea to find their
+        selectable child (e.g. a Selection or Button placed inside a Frame)."""
+        cell = self.grid[row][col]
+        raw_elements = cell if isinstance(cell, list) else ([cell] if cell else [])
+
+        selectables = []
+        for el in raw_elements:
+            if not el:
+                continue
+            if hasattr(el, "select"):
+                selectables.append(el)
+            else:
+                selectables.extend(
+                    child for child in self._walk_tree([el]) if hasattr(child, "select")
+                )
+        return selectables
+
+    def _focus_grid_element(self, element):
+        selectable_elements = self._selectable_elements()
+        if element not in selectable_elements:
+            return
+        current, _ = self._current_selectable()
+        if current is not None and current is not element:
+            current.on_blur()
+        self.focused_element = selectable_elements.index(element)
+        element.on_focus()
+
+    def _init_grid_selection(self):
+        """Focuses the first selectable element found in the grid, scanning
+        top-left to bottom-right. Called once when the app starts."""
+        rows, columns = self._grid_dimensions()
+        for row in range(rows):
+            for col in range(columns):
+                selectables = self._selectables_in_cell(row, col)
+                if selectables:
+                    self.selected_row = row
+                    self.selected_col = col
+                    self.selected_inner = 0
+                    self._focus_grid_element(selectables[0])
+                    return
+
+    def _move_grid_row(self, direction):
+        """UP/DOWN: move to the next row, skipping rows whose cell (in the
+        current column) has no selectable element, until one is found."""
+        rows, columns = self._grid_dimensions()
+        if rows == 0 or columns == 0:
+            return
+
+        col = self.selected_col
+        for _ in range(rows):
+            self.selected_row = (self.selected_row + direction) % rows
+            selectables = self._selectables_in_cell(self.selected_row, col)
+            if selectables:
+                self.selected_inner = 0
+                self._focus_grid_element(selectables[0])
+                return
+
+    def _move_grid_col(self, direction):
+        """LEFT/RIGHT: if the current cell holds multiple selectable elements,
+        cycle through them first. At the boundary (or if there's only one/no
+        element), move to the next column instead, skipping empty cells."""
+        rows, columns = self._grid_dimensions()
+        if rows == 0 or columns == 0:
+            return
+
+        row = self.selected_row
+        current_selectables = self._selectables_in_cell(row, self.selected_col)
+
+        if len(current_selectables) > 1:
+            new_inner = self.selected_inner + direction
+            if 0 <= new_inner < len(current_selectables):
+                self.selected_inner = new_inner
+                self._focus_grid_element(current_selectables[self.selected_inner])
+                return
+
+        for _ in range(columns):
+            self.selected_col = (self.selected_col + direction) % columns
+            selectables = self._selectables_in_cell(row, self.selected_col)
+            if selectables:
+                self.selected_inner = 0 if direction > 0 else len(selectables) - 1
+                self._focus_grid_element(selectables[self.selected_inner])
+                return
 
     def run(self, clearscreen=True, controls=False):
-
-        
-
         is_unix = False
         try:
             import tty, termios
@@ -288,7 +387,9 @@ class App:
             if clearscreen:
                 clear_screen()
             selectable_elements = self._selectable_elements()
-            if selectable_elements and self.layer == 0:
+            if self.use_grid and getattr(self, "grid", None):
+                self._init_grid_selection()
+            elif selectable_elements and self.layer == 0:
                 selectable_elements[self.focused_element].on_focus()
 
             old_size = []
@@ -300,16 +401,12 @@ class App:
 
             while self.running:
 
-                
-
                 for el in self._dynamic_elements():
                     el.update()
 
                 current_terminal_size = [os.get_terminal_size().columns, os.get_terminal_size().lines]
                 self.controls_line.y = current_terminal_size[1] - 2
                 self.controls.y = current_terminal_size[1] - 1
-
-
 
                 if current_terminal_size != old_size:
                     if self.use_grid:
@@ -337,16 +434,38 @@ class App:
                             self.open_quit_dialog()
                     case "q":
                         self.open_quit_dialog()
-                    case ".":
+                    case "UP":
                         if self.layer == 0:
-                            self.change_focus(1)
+                            if self.use_grid and getattr(self, "grid", None):
+                                self._move_grid_row(-1)
                         else:
                             selectable_elements = self._selectable_elements()
                             if selectable_elements:
                                 selectable_elements[self.focused_element].input(key)
-                    case ",":
+                    case "DOWN":
                         if self.layer == 0:
-                            self.change_focus(-1)
+                            if self.use_grid and getattr(self, "grid", None):
+                                self._move_grid_row(1)
+                        else:
+                            selectable_elements = self._selectable_elements()
+                            if selectable_elements:
+                                selectable_elements[self.focused_element].input(key)
+                    case "RIGHT":
+                        if self.layer == 0:
+                            if self.use_grid and getattr(self, "grid", None):
+                                self._move_grid_col(1)
+                            else:
+                                self.change_focus(1)
+                        else:
+                            selectable_elements = self._selectable_elements()
+                            if selectable_elements:
+                                selectable_elements[self.focused_element].input(key)
+                    case "LEFT":
+                        if self.layer == 0:
+                            if self.use_grid and getattr(self, "grid", None):
+                                self._move_grid_col(-1)
+                            else:
+                                self.change_focus(-1)
                         else:
                             selectable_elements = self._selectable_elements()
                             if selectable_elements:

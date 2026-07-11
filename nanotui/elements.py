@@ -402,9 +402,9 @@ class Selection(Element):
     
     def input(self, key):
         match(key):
-            case ",":
+            case "UP" | "LEFT":
                 self.change_highlight(-1)
-            case ".":
+            case "DOWN" | "RIGHT":
                 self.change_highlight(1)
 
     def get_value(self):
@@ -541,9 +541,9 @@ class SelectBox(Element):
 
     def input(self, key):
         match(key):
-            case ",":
+            case "LEFT":
                 self.change_highlight(-1)
-            case ".":
+            case "RIGHT":
                 self.change_highlight(1)
     
     def on_focus(self):
