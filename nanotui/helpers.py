@@ -17,7 +17,7 @@ FILE_ICONS = {
     ".kt":         {"icon": "", "color": "\033[35m"},   # Magenta (Kotlin)
     ".rs":         {"icon": "", "color": "\033[31m"},   # Rot (Rust)
     ".go":         {"icon": "", "color": "\033[36m"},   # Cyan (Go)
-    ".php":        {"icon": "🐘", "color": "\033[35m"},   # Magenta (PHP)
+    ".php":        {"icon": "", "color": "\033[35m"},   # Magenta (PHP)
     ".rb":         {"icon": "", "color": "\033[31m"},   # Rot (Ruby)
     ".swift":      {"icon": "", "color": "\033[31m"},   # Rot (Swift)
     ".lua":        {"icon": "", "color": "\033[34m"},   # Blau (Lua)
