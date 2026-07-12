@@ -1,6 +1,7 @@
 # nanotui/elements.py
 from .colors import *
 from .screen import *
+from .helpers import get_file_icon
 import time
 import os
 
@@ -764,5 +765,162 @@ class ProgressBar(Element):
         )
         
         self.draw()
-    
-            
+
+ 
+class FileExplorer(Element):
+    """A scrollable file/folder browser. Unlike Selection/SelectBox, entries
+    are kept as plain (name, is_dir) tuples instead of individual child
+    Elements, since a directory can easily hold far more entries than it
+    makes sense to manage as separate Option objects. Only the FileExplorer
+    itself is selectable - it manages its own highlight and scroll state
+    internally, the same way LogBox manages its own scrolling text buffer."""
+
+    def __init__(self, x, y, path=".", on_select=None, on_navigate=None,
+                 show_hidden=False, color=WHITE, bg_color="", style="",
+                 folder_color=CYAN, file_color=WHITE, parent=None,
+                 width=None, height=None):
+        super().__init__(x, y, parent=parent, width=width, height=height)
+        self.fill_grid = True
+        self.offset_x = x
+        self.offset_y = y
+
+        self.path = os.path.abspath(path)
+        self.on_select = on_select      # called with the full file path once a file is chosen
+        self.on_navigate = on_navigate  # optional: called with the new dir path on folder change
+        self.show_hidden = show_hidden
+
+        self.color = color
+        self.bg_color = bg_color
+        self.style = style
+        self.folder_color = folder_color
+        self.file_color = file_color
+
+        if width is None:
+            self.width = 40
+        if height is None:
+            self.height = 15
+
+        self.entries = []       # list of (name, is_dir) tuples
+        self.highlighted = 0
+        self.scroll_offset = 0
+        self.selected = False
+
+        self._refresh_entries()
+
+    def _refresh_entries(self):
+        try:
+            raw = os.listdir(self.path)
+        except OSError:
+            raw = []
+
+        if not self.show_hidden:
+            raw = [name for name in raw if not name.startswith(".")]
+
+        dirs, files = [], []
+        for name in raw:
+            full_path = os.path.join(self.path, name)
+            (dirs if os.path.isdir(full_path) else files).append(name)
+
+        dirs.sort(key=str.lower)
+        files.sort(key=str.lower)
+
+        self.entries = []
+        if os.path.dirname(self.path) != self.path:
+            self.entries.append(("..", True))
+        self.entries += [(name, True) for name in dirs]
+        self.entries += [(name, False) for name in files]
+
+        self.highlighted = 0
+        self.scroll_offset = 0
+
+    def _list_height(self):
+        # row 0 is reserved for the path header, so one less than the box height
+        height = self.height if self._explicit_height else self.available_height()
+        return max(1, height - 1)
+
+    def draw(self, focus=False):
+        self.erase()
+
+        max_path_len = max(self.width, 1)
+        if len(self.path) <= max_path_len:
+            header = self.path
+        else:
+            header = "..." + self.path[-max(max_path_len - 3, 0):]
+        draw_at(self.global_y(), self.global_x(), ctext(header.ljust(self.width), self.color, self.bg_color, BOLD))
+
+        visible_height = self._list_height()
+        visible = self.entries[self.scroll_offset:self.scroll_offset + visible_height]
+
+        for i, (name, is_dir) in enumerate(visible):
+            icon, icon_color = get_file_icon(name, is_dir)
+            index = self.scroll_offset + i
+            label = (name + "/") if (is_dir and name != "..") else name
+            row_color = self.folder_color if is_dir else self.file_color
+            row_style = REVERSE if (self.selected and index == self.highlighted) or focus else RESET
+            draw_at(self.global_y() + 1 + i, self.global_x() + 1,
+                    ctext(label[:self.width].ljust(self.width), row_color, self.bg_color, row_style))
+            draw_at(self.global_y() + 1 + i, self.global_x(), ctext(icon, self.folder_color if is_dir else icon_color))
+
+    def on_focus(self):
+        super().on_focus()
+        self.draw(focus=True)
+
+    def on_blur(self):
+        super().on_blur()
+        self.selected = False
+        self.draw()
+
+    def select(self):
+        self.selected = True
+        self.draw()
+
+    def _move_highlight(self, direction):
+        if not self.entries:
+            return
+        self.highlighted = (self.highlighted + direction) % len(self.entries)
+
+        visible_height = self._list_height()
+        if self.highlighted < self.scroll_offset:
+            self.scroll_offset = self.highlighted
+        elif self.highlighted >= self.scroll_offset + visible_height:
+            self.scroll_offset = self.highlighted - visible_height + 1
+
+        self.draw()
+
+    def _navigate_into(self, name):
+        new_path = os.path.abspath(os.path.join(self.path, name))
+        if os.path.isdir(new_path):
+            self.path = new_path
+            self._refresh_entries()
+            self.draw()
+            if self.on_navigate:
+                self.on_navigate(self.path)
+
+    def input(self, key):
+        match key:
+            case "UP":
+                self._move_highlight(-1)
+            case "DOWN":
+                self._move_highlight(1)
+            case "RIGHT":
+                if self.entries:
+                    name, is_dir = self.entries[self.highlighted]
+                    if is_dir:
+                        self._navigate_into(name)
+            case "LEFT":
+                self._navigate_into("..")
+
+    def enter(self):
+        if not self.entries:
+            return
+        name, is_dir = self.entries[self.highlighted]
+        if is_dir:
+            self._navigate_into(name)
+        elif self.on_select:
+            self.on_select(os.path.join(self.path, name))
+
+    def get_value(self):
+        if not self.entries:
+            return None
+        name, _ = self.entries[self.highlighted]
+        return os.path.join(self.path, name)

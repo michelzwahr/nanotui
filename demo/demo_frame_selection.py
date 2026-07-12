@@ -42,7 +42,9 @@ def main():
     action_button = Button(30, 3, "Action", parent=select_frame, color=DEFAULT, bg_color=BG_BRIGHT_BLUE, on_select=button_action)
     select_button = Button(40, 3, "Select", parent=select_frame, color=DEFAULT, bg_color=BG_BLUE, on_select=button_select)
 
-    another_button = Button(1, 1, "Knopf", parent=bottom_frame)
+    another_button = Button(1, 1, "Knopf")
+
+    browser = FileExplorer(1, 1, parent=bottom_frame)
 
     app.create_grid(3, 3)
     app.add_to_grid([
@@ -55,6 +57,8 @@ def main():
     ])   
     app.config_column(1, 5)
     app.config_column(2, 3)
+    app.config_row(3, 3)
+    app.config_row(2, 2)
     
     app.run(controls=True)
 
